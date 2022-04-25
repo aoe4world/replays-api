@@ -1,0 +1,22 @@
+steps:
+#- name: 'gcr.io/cloud-builders/docker'
+#  entrypoint: 'bash'
+#  args: ['-c', 'docker pull gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest']
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest',
+    '-t', 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:$COMMIT_SHA',
+    '--cache-from', 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest',
+    '.'
+  ]
+- name: "gcr.io/cloud-builders/docker"
+  args: ["push", "gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:$COMMIT_SHA"]
+- name: "gcr.io/cloud-builders/kubectl"
+  args: ["set", "image", "deployment/replays-api", "api=gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:$COMMIT_SHA"]
+  env:
+  - 'CLOUDSDK_COMPUTE_REGION=europe-west3'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=primary'
+
+images:
+- 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest'
