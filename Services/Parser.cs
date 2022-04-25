@@ -5,6 +5,8 @@ namespace AoE4WorldReplayParser.Services;
 
 public class Parser
 {
+    const bool Debug = false;
+
     public record struct PlayerSummary(
         Player Player,
         Resources[] Resources,
@@ -34,8 +36,6 @@ public class Parser
 
     public static PlayerSummary[] Call(MemoryStream replayData)
     {
-        Console.WriteLine($"Call");
-
         ChunkyFile replay = ChunkyFile.FromStream(replayData);
 
         List<PlayerSummary> result = new List<PlayerSummary>();
@@ -52,8 +52,8 @@ public class Parser
     static void Traverse(List<PlayerSummary> result, IChunkyNode node, int depth) {
         var indentation = new string(' ', depth * 2);
 
-        Console.WriteLine($"{indentation}node (type: {node.Header.Type}, name: {node.Header.Name}, version: {node.Header.Version}, length: {node.Header.Length}, path: {node.Header.Path})");
-        Console.WriteLine($"{indentation}{node.Header.Type}");
+        debugWriteLine($"{indentation}node (type: {node.Header.Type}, name: {node.Header.Name}, version: {node.Header.Version}, length: {node.Header.Length}, path: {node.Header.Path})");
+        debugWriteLine($"{indentation}{node.Header.Type}");
 
         if (node.Header.Type == "FOLD") {
             var folder = (IChunkyFolderNode) node;
@@ -66,7 +66,7 @@ public class Parser
 
             ProcessDataNode(result, data, depth);
         } else {
-            Console.WriteLine($"{indentation}unhandled type: {node.Header.Type}");
+            debugWriteLine($"{indentation}unhandled type: {node.Header.Type}");
         }
     }
 
@@ -80,7 +80,7 @@ public class Parser
 
 
 
-        Console.WriteLine($"{indentation}{node.Header.Name}");
+        debugWriteLine($"{indentation}{node.Header.Name}");
 
         if (node.Header.Name == "STLS") {
             processResources(bytes);
@@ -93,7 +93,7 @@ public class Parser
 
             result.Add(playerSummary);
         } else {
-            // Console.WriteLine($"unhandled data node: {node.Header.Name}");
+            // debugWriteLine($"unhandled data node: {node.Header.Name}");
         }
     }
 
@@ -110,7 +110,7 @@ public class Parser
         }
 
 
-        Console.WriteLine($"Player: {playerName}");
+        debugWriteLine($"Player: {playerName}");
 
         return new Player(playerName);
     }
@@ -134,10 +134,10 @@ public class Parser
         }
 
         foreach (var step in buildOrder) {
-            Console.WriteLine($"{step}");
+            debugWriteLine($"{step}");
         }
 
-        Console.WriteLine();
+        debugWriteLine();
 
         return buildOrder.ToArray();
     }
@@ -171,7 +171,7 @@ public class Parser
         }
 
         foreach (var resources in allResourcesSnapshots) {
-            Console.WriteLine($"{resources}");
+            debugWriteLine($"{resources}");
         }
 
         return relevantResourcesSnapshots.ToArray();
@@ -191,8 +191,8 @@ public class Parser
     }
 
     static void findByteSequence(string label, byte[] bytes, byte[] sequence, int valueLength) {
-        Console.WriteLine();
-        Console.WriteLine($"{label}:    ");
+        debugWriteLine();
+        debugWriteLine($"{label}:    ");
 
         for (int i = 0; i < bytes.Length - sequence.Length; i++) {
             bool found = true;
@@ -206,17 +206,17 @@ public class Parser
             }
 
             if (found) {
-                Console.WriteLine($"  found at {i}");
+                debugWriteLine($"  found at {i}");
 
-                Console.Write("  value: ");
+                debugWrite("  value: ");
                 for (int k = 0; k < valueLength; k++) {
                     // Console.Write($"{bytes[i + j + k]} ");
-                    Console.Write("{0,4}", bytes[i + j + k]);
+                    debugWrite("{0,4}", bytes[i + j + k]);
                 }
                 var segment = bytes[(i + j)..(i + j + 4)];
                 var segmentValue = BitConverter.ToSingle(segment);
-                Console.Write($" ({segmentValue})");
-                Console.WriteLine();
+                debugWrite($" ({segmentValue})");
+                debugWriteLine();
             }
 
         }
@@ -265,4 +265,18 @@ public class Parser
 
         return positions.ToArray();
     }
+
+    #pragma warning disable 0162
+    static void debugWriteLine(string format = "", params object[] parameters) {
+        if (Debug) {
+            Console.WriteLine(format, parameters);
+        }
+    }
+
+    static void debugWrite(string format = "", params object[] parameters) {
+        if (Debug) {
+            Console.Write(format, parameters);
+        }
+    }
+    #pragma warning restore 0162
 }
