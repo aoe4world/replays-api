@@ -31,7 +31,7 @@ public class Parser
 
     public readonly record struct BuildOrderStep(
         uint Timestamp,
-        string Name
+        string Icon
     );
 
     public static PlayerSummary[] Call(MemoryStream replayData)
