@@ -27,7 +27,8 @@ public class SummaryController : ControllerBase
         using var decompressor = new GZipStream(compressedData, CompressionMode.Decompress);
         decompressor.CopyTo(dataStream);
         dataStream.Seek(0, SeekOrigin.Begin);
-        var result = Parser.Call(dataStream);
+        var parser = new Parser(false);
+        var result = parser.Call(dataStream);
 
         return result;
     }

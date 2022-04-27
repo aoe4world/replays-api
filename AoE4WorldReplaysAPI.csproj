@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <EnablePreviewFeatures>True</EnablePreviewFeatures>
@@ -12,5 +11,4 @@
     <PackageReference Include="AOEMods.Essence" Version="0.6.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
   </ItemGroup>
-
 </Project>
