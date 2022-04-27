@@ -7,8 +7,8 @@ public class Parser
 {
     public record struct PlayerSummary(
         Player Player,
-        Resources[] Resources,
-        BuildOrderStep[] BuildOrder
+        BuildOrderStep[] BuildOrder,
+        Resources[] Resources
     );
 
     public readonly record struct Player(
@@ -29,7 +29,10 @@ public class Parser
 
     public readonly record struct BuildOrderStep(
         uint Timestamp,
-        string Icon
+        string Icon,
+        // uint Foo,
+        string Type,
+        float Foo
     );
 
     private bool debug;
@@ -93,8 +96,8 @@ public class Parser
         } else if (node.Header.Name == "STPD") {
             var playerSummary = new PlayerSummary(
                 ProcessPlayer(bytes),
-                ProcessResources(bytes),
-                ProcessBuildOrder(bytes)
+                ProcessBuildOrder(bytes),
+                ProcessResources(bytes)
             );
 
             result.Add(playerSummary);
@@ -124,18 +127,39 @@ public class Parser
         var positions = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}); // icons
 
         var buildOrder = new List<BuildOrderStep>();
+        var spawnIdMap = new Dictionary<string, byte>();
 
         foreach (var position in positions) {
-            var segment = bytes[(position - 8)..];
+            var segment = bytes[(position - 21)..];
+            var timestampSegment = bytes[(position - 8)..];
+
+            var timestamp = BitConverter.ToUInt32(timestampSegment[0..4]);
+            var icon = ParseString(bytes[position..]);
+            var typeId = FindByteSequenceValueByte("$ 0", timestampSegment, new byte[] {0x24, 0x00, 0x30, 0x00});
+
+            if (!spawnIdMap.ContainsKey(icon)) {
+                spawnIdMap.Add(icon, typeId);
+            }
+
+            var type = "";
+
+            if (timestamp == 0) {
+                type = "initial";
+            } else if (spawnIdMap[icon] == typeId) {
+                type = "spawn";
+            } else {
+                type = "death";
+            }
 
             var step = new BuildOrderStep(
-                BitConverter.ToUInt32(segment[0..4]),
-                ParseString(bytes[position..])
+                timestamp,
+                icon,
+                // segment[0],
+                type,
+                typeId
             );
 
-            if (step.Timestamp > 0) {
-                buildOrder.Add(step);
-            }
+            buildOrder.Add(step);
         }
 
         foreach (var step in buildOrder) {
@@ -170,7 +194,7 @@ public class Parser
 
             allResourcesSnapshots.Add(record);
 
-            if (record.Action == -1) {
+            if (record.Action == -1 || debug) {
                 relevantResourcesSnapshots.Add(record);
             }
         }
@@ -195,38 +219,6 @@ public class Parser
         return new string(chars.ToArray());
     }
 
-    void FindByteSequence(string label, byte[] bytes, byte[] sequence, int valueLength) {
-        Console.WriteLine();
-        Console.WriteLine($"{label}:    ");
-
-        for (int i = 0; i < bytes.Length - sequence.Length; i++) {
-            bool found = true;
-            int j = 0;
-
-            for (j = 0; j < sequence.Length; j++) {
-                if (bytes[i + j] != sequence[j]) {
-                    found = false;
-                    break;
-                }
-            }
-
-            if (found) {
-                Console.WriteLine($"  found at {i}");
-
-                Console.Write("  value: ");
-                for (int k = 0; k < valueLength; k++) {
-                    // Console.Write($"{bytes[i + j + k]} ");
-                    Console.Write("{0,4}", bytes[i + j + k]);
-                }
-                var segment = bytes[(i + j)..(i + j + 4)];
-                var segmentValue = BitConverter.ToSingle(segment);
-                Console.Write($" ({segmentValue})");
-                Console.WriteLine();
-            }
-
-        }
-    }
-
     float FindByteSequenceValue(string label, byte[] bytes, byte[] sequence) {
         for (int i = 0; i < bytes.Length - sequence.Length; i++) {
             bool found = true;
@@ -242,6 +234,29 @@ public class Parser
             if (found) {
                 var segment = bytes[(i + j)..(i + j + 4)];
                 return BitConverter.ToSingle(segment);
+            }
+
+        }
+
+        return 0;
+    }
+
+    byte FindByteSequenceValueByte(string label, byte[] bytes, byte[] sequence) {
+        for (int i = 0; i < bytes.Length - sequence.Length; i++) {
+            bool found = true;
+            int j = 0;
+
+            for (j = 0; j < sequence.Length; j++) {
+                if (bytes[i + j] != sequence[j]) {
+                    found = false;
+                    break;
+                }
+            }
+
+            if (found) {
+                var segment = bytes[(i + j)..(i + j + 4)];
+                return bytes[i + j];
+                // return BitConverter.ToSingle(segment);
             }
 
         }
