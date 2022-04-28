@@ -7,10 +7,8 @@ public class Parser
 {
     public record struct PlayerSummary(
         Player Player,
-        Dictionary<string, List<uint>> ResourcesV2,
-        BuildOrderEntry[] BuildOrderV2,
-        Resources[] Resources,
-        BuildOrderStep[] BuildOrder
+        Dictionary<string, List<uint>> Resources,
+        BuildOrderEntry[] BuildOrder
     );
 
     public readonly record struct Player(
@@ -109,9 +107,7 @@ public class Parser
             var playerSummary = new PlayerSummary(
                 ProcessPlayer(bytes),
                 resourcesV2,
-                buildOrderV2,
-                resourcesV1,
-                buildOrderV1
+                buildOrderV2
             );
 
             result.Add(playerSummary);
@@ -171,7 +167,7 @@ public class Parser
             var timestampSegment = bytes[(position - 8)..];
 
             var timestamp = BitConverter.ToUInt32(timestampSegment[0..4]);
-            var icon = ParseString(bytes[position..]);
+            var icon = ParseString(bytes[position..]).Replace('\\', '/');
             var id = ParseUnicodeString(bytes[(position + icon.Length - 2)..]);
             var typeId = FindByteSequenceValueByte("$ 0", timestampSegment, new byte[] {0x24, 0x00, 0x30, 0x00});
 
