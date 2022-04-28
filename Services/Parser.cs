@@ -38,6 +38,7 @@ public class Parser
     );
 
     public record struct BuildOrderEntry(
+        string Id,
         string Icon,
         List<uint> Spawned,
         List<uint> Destroyed
@@ -136,6 +137,26 @@ public class Parser
         return new Player(playerName);
     }
 
+    string ParseUnicodeString(byte[] bytes) {
+        var playerNameLength = BitConverter.ToUInt32(bytes[4..8]);
+
+        var value = "";
+
+        for (int i = 0; i < playerNameLength; i++) {
+            var charBytes = bytes[(8 + i * 2)..(8 + (i + 1) * 2)];
+
+            if (charBytes[0] == 0 && charBytes[1] == 0) {
+                break;
+            }
+
+            var ch = BitConverter.ToChar(charBytes);
+
+            value += ch;
+        }
+
+        return value;
+    }
+
     (BuildOrderStep[], BuildOrderEntry[]) ProcessBuildOrder(byte[] bytes) {
         var positions = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}); // icons
 
@@ -143,12 +164,15 @@ public class Parser
         var buildOrderMap = new Dictionary<string, BuildOrderEntry>();
         var spawnIdMap = new Dictionary<string, byte>();
 
+        var scanningInitial = true;
+
         foreach (var position in positions) {
             var segment = bytes[(position - 21)..];
             var timestampSegment = bytes[(position - 8)..];
 
             var timestamp = BitConverter.ToUInt32(timestampSegment[0..4]);
             var icon = ParseString(bytes[position..]);
+            var id = ParseUnicodeString(bytes[(position + icon.Length - 2)..]);
             var typeId = FindByteSequenceValueByte("$ 0", timestampSegment, new byte[] {0x24, 0x00, 0x30, 0x00});
 
             if (!spawnIdMap.ContainsKey(icon)) {
@@ -173,17 +197,23 @@ public class Parser
                 typeId
             );
 
+            if (scanningInitial && timestamp != 0) {
+                scanningInitial = false;
+
+                foreach (var entry in buildOrderMap.Values) {
+                    entry.Spawned.RemoveRange(entry.Spawned.Count / 2, entry.Spawned.Count / 2);
+                }
+            }
+
             buildOrder.Add(step);
 
-            if (type != "initial") {
-                buildOrderMap.TryAdd(icon, new BuildOrderEntry(icon, new List<uint>(), new List<uint>()));
-                var buildOrderEntry = buildOrderMap[icon];
+            buildOrderMap.TryAdd(icon, new BuildOrderEntry(id, icon, new List<uint>(), new List<uint>()));
+            var buildOrderEntry = buildOrderMap[icon];
 
-                if (type == "spawn") {
-                    buildOrderEntry.Spawned.Add(timestamp);
-                } else if (type == "death") {
-                    buildOrderEntry.Destroyed.Add(timestamp);
-                }
+            if (type == "spawn" || type == "initial") {
+                buildOrderEntry.Spawned.Add(timestamp);
+            } else if (type == "death") {
+                buildOrderEntry.Destroyed.Add(timestamp);
             }
         }
 
