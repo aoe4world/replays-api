@@ -8,6 +8,7 @@ public class Parser
     public record struct PlayerSummary(
         Player Player,
         BuildOrderStep[] BuildOrder,
+        BuildOrderEntry[] BuildOrderV2,
         Resources[] Resources
     );
 
@@ -33,6 +34,12 @@ public class Parser
         // uint Foo,
         string Type,
         float Foo
+    );
+
+    public record struct BuildOrderEntry(
+        string Icon,
+        List<uint> Spawned,
+        List<uint> Destroyed
     );
 
     private bool debug;
@@ -94,9 +101,11 @@ public class Parser
         if (node.Header.Name == "STLS") {
             ProcessResources(bytes);
         } else if (node.Header.Name == "STPD") {
+            var (buildOrderV1, buildOrderV2) = ProcessBuildOrder(bytes);
             var playerSummary = new PlayerSummary(
                 ProcessPlayer(bytes),
-                ProcessBuildOrder(bytes),
+                buildOrderV1,
+                buildOrderV2,
                 ProcessResources(bytes)
             );
 
@@ -123,10 +132,11 @@ public class Parser
         return new Player(playerName);
     }
 
-    BuildOrderStep[] ProcessBuildOrder(byte[] bytes) {
+    (BuildOrderStep[], BuildOrderEntry[]) ProcessBuildOrder(byte[] bytes) {
         var positions = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}); // icons
 
         var buildOrder = new List<BuildOrderStep>();
+        var buildOrderMap = new Dictionary<string, BuildOrderEntry>();
         var spawnIdMap = new Dictionary<string, byte>();
 
         foreach (var position in positions) {
@@ -160,6 +170,17 @@ public class Parser
             );
 
             buildOrder.Add(step);
+
+            if (type != "initial") {
+                buildOrderMap.TryAdd(icon, new BuildOrderEntry(icon, new List<uint>(), new List<uint>()));
+                var buildOrderEntry = buildOrderMap[icon];
+
+                if (type == "spawn") {
+                    buildOrderEntry.Spawned.Add(timestamp);
+                } else if (type == "death") {
+                    buildOrderEntry.Destroyed.Add(timestamp);
+                }
+            }
         }
 
         foreach (var step in buildOrder) {
@@ -168,7 +189,7 @@ public class Parser
 
         Console.WriteLine();
 
-        return buildOrder.ToArray();
+        return (buildOrder.ToArray(), buildOrderMap.Values.ToArray());
     }
 
     Resources[] ProcessResources(byte[] bytes) {
