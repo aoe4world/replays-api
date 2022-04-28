@@ -7,9 +7,10 @@ public class Parser
 {
     public record struct PlayerSummary(
         Player Player,
-        BuildOrderStep[] BuildOrder,
+        Dictionary<string, List<uint>> ResourcesV2,
         BuildOrderEntry[] BuildOrderV2,
-        Resources[] Resources
+        Resources[] Resources,
+        BuildOrderStep[] BuildOrder
     );
 
     public readonly record struct Player(
@@ -102,11 +103,14 @@ public class Parser
             ProcessResources(bytes);
         } else if (node.Header.Name == "STPD") {
             var (buildOrderV1, buildOrderV2) = ProcessBuildOrder(bytes);
+            var (resourcesV1, resourcesV2) = ProcessResources(bytes);
+
             var playerSummary = new PlayerSummary(
                 ProcessPlayer(bytes),
-                buildOrderV1,
+                resourcesV2,
                 buildOrderV2,
-                ProcessResources(bytes)
+                resourcesV1,
+                buildOrderV1
             );
 
             result.Add(playerSummary);
@@ -192,7 +196,9 @@ public class Parser
         return (buildOrder.ToArray(), buildOrderMap.Values.ToArray());
     }
 
-    Resources[] ProcessResources(byte[] bytes) {
+    (Resources[], Dictionary<string, List<uint>>) ProcessResources(byte[] bytes) {
+        var resourcesV2 = new Dictionary<string, List<uint>>();
+
         var positions = FindByteSequencePositions(bytes, new byte[] {0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E});
 
         var allResourcesSnapshots = new List<Resources>();
@@ -218,13 +224,27 @@ public class Parser
             if (record.Action == -1 || debug) {
                 relevantResourcesSnapshots.Add(record);
             }
+
+            if (record.Action == -1) {
+                resourcesV2.TryAdd("timestamps", new List<uint>());
+                resourcesV2.TryAdd("food", new List<uint>());
+                resourcesV2.TryAdd("gold", new List<uint>());
+                resourcesV2.TryAdd("stone", new List<uint>());
+                resourcesV2.TryAdd("wood", new List<uint>());
+
+                resourcesV2["timestamps"].Add(record.Timestamp);
+                resourcesV2["food"].Add((uint) Math.Round(record.Food));
+                resourcesV2["gold"].Add((uint) Math.Round(record.Food));
+                resourcesV2["stone"].Add((uint) Math.Round(record.Food));
+                resourcesV2["wood"].Add((uint) Math.Round(record.Food));
+            }
         }
 
         foreach (var resources in allResourcesSnapshots) {
             Console.WriteLine($"{resources}");
         }
 
-        return relevantResourcesSnapshots.ToArray();
+        return (relevantResourcesSnapshots.ToArray(), resourcesV2);
     }
 
     string ParseString(byte[] bytes) {
