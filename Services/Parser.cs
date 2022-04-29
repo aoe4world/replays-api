@@ -260,9 +260,9 @@ public class Parser
 
                 resourcesV2["timestamps"].Add(record.Timestamp);
                 resourcesV2["food"].Add((uint) Math.Round(record.Food));
-                resourcesV2["gold"].Add((uint) Math.Round(record.Food));
-                resourcesV2["stone"].Add((uint) Math.Round(record.Food));
-                resourcesV2["wood"].Add((uint) Math.Round(record.Food));
+                resourcesV2["gold"].Add((uint) Math.Round(record.Gold));
+                resourcesV2["stone"].Add((uint) Math.Round(record.Stone));
+                resourcesV2["wood"].Add((uint) Math.Round(record.Wood));
             }
         }
 
