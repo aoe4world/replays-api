@@ -7,6 +7,7 @@ public class Parser
 {
     public record struct PlayerSummary(
         string Name,
+        Scores Scores,
         Dictionary<string, List<uint>> Resources,
         BuildOrderEntry[] BuildOrder
     );
@@ -44,6 +45,65 @@ public class Parser
 
     private bool debug;
     private int fileCounter = 0;
+
+    public readonly record struct Scores(
+        float TotalScore, // 226 vs 374
+        float Military, // 14 vs 42
+        float Economy, // 72 vs 192
+        float Technology, // 0 vs 0
+        float Society, // 140 vs 140
+        float[] Foos
+        // float Foo1,
+        // float Foo2,
+        // float Foo3,
+        // float Foo4,
+        // float Foo5,
+        // float Foo6
+    );
+
+    Scores ProcessScores(byte[] bytes) {
+        int firstIconsPosition = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}).First();
+        int previousWoodPosition = FindByteSequencePositions(bytes, new byte[] {119, 111, 111, 100}).Where(p => p < firstIconsPosition).Last();
+        int startPosition = previousWoodPosition + 20;
+        int cursor = startPosition;
+
+        var values = new List<float>();
+
+        for (int i = 0; i < 15; i++) {
+            values.AddRange(new float[] {
+                ParseFloat(bytes, cursor),
+                ParseFloat(bytes, cursor += 4),
+                ParseFloat(bytes, cursor += 4),
+                ParseFloat(bytes, cursor += 4),
+                ParseFloat(bytes, cursor += 4),
+                BitConverter.ToInt32(bytes, cursor += 4),
+            });
+            cursor += 4;
+        }
+
+        for (int i = 0; i < 25; i++) {
+            values.AddRange(new float[] {
+                BitConverter.ToInt32(bytes, cursor),
+            });
+            cursor += 4;
+        }
+
+        var scores = new Scores {
+            // values[4],
+            TotalScore = values[82],
+            // values[1],
+            Military = values[85],
+            // Economy = values[0],
+            Economy = values[84],
+            // Technology = values[3],
+            Technology = values[87],
+            // Society = values[2],
+            Society = values[86],
+            Foos = debug ? values.ToArray() : new float[0]
+        };
+
+        return scores;
+    }
 
     public Parser(bool debugEnabled) {
         debug = debugEnabled;
@@ -103,9 +163,11 @@ public class Parser
         } else if (node.Header.Name == "STPD") {
             var (buildOrderV1, buildOrderV2) = ProcessBuildOrder(bytes);
             var (resourcesV1, resourcesV2) = ProcessResources(bytes);
+            var scores = ProcessScores(bytes);
 
             var playerSummary = new PlayerSummary(
                 ProcessPlayer(bytes).Name,
+                scores,
                 resourcesV2,
                 buildOrderV2
             );
@@ -114,6 +176,11 @@ public class Parser
         } else {
             // Console.WriteLine($"unhandled data node: {node.Header.Name}");
         }
+    }
+
+    float ParseFloat(byte[] bytes, int position) {
+        var segment = bytes[(position)..(position + 4)];
+        return BitConverter.ToSingle(segment);
     }
 
     Player ProcessPlayer(byte[] bytes) {
