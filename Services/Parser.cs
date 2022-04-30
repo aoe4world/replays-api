@@ -6,7 +6,7 @@ namespace AoE4WorldReplayParser.Services;
 public class Parser
 {
     public record struct PlayerSummary(
-        Player Player,
+        string Name,
         Dictionary<string, List<uint>> Resources,
         BuildOrderEntry[] BuildOrder
     );
@@ -105,7 +105,7 @@ public class Parser
             var (resourcesV1, resourcesV2) = ProcessResources(bytes);
 
             var playerSummary = new PlayerSummary(
-                ProcessPlayer(bytes),
+                ProcessPlayer(bytes).Name,
                 resourcesV2,
                 buildOrderV2
             );
