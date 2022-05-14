@@ -1,5 +1,6 @@
 using AOEMods.Essence.Chunky.Core;
 using AOEMods.Essence.Chunky.Graph;
+using System.Text.RegularExpressions;
 
 namespace AoE4WorldReplayParser.Services;
 
@@ -41,7 +42,8 @@ public class Parser
         string Id,
         string Icon,
         List<uint> Spawned,
-        List<uint> Destroyed
+        List<uint> Destroyed,
+        List<uint> Unknown
     );
 
     private bool debug;
@@ -244,19 +246,22 @@ public class Parser
             var icon = ParseString(bytes[position..]).Replace('\\', '/');
             var id = ParseUnicodeString(bytes[(position + icon.Length - 2)..]);
             var typeId = FindByteSequenceValueByte("$ 0", timestampSegment, new byte[] {0x24, 0x00, 0x30, 0x00});
+            var normalizedIcon = Regex.Replace(icon, @"_\d$", ",");
 
-            if (!spawnIdMap.ContainsKey(icon)) {
-                spawnIdMap.Add(icon, typeId);
+            if (!spawnIdMap.ContainsKey(normalizedIcon)) {
+                spawnIdMap.Add(normalizedIcon, typeId);
             }
 
             var type = "";
 
             if (timestamp == 0) {
                 type = "initial";
-            } else if (spawnIdMap[icon] == typeId) {
+            } else if (spawnIdMap[normalizedIcon] == typeId) {
                 type = "spawn";
-            } else {
+            } else if (spawnIdMap[normalizedIcon] == typeId - 1) {
                 type = "death";
+            } else {
+                type = "unknown";
             }
 
             var step = new BuildOrderStep(
@@ -277,13 +282,15 @@ public class Parser
 
             buildOrder.Add(step);
 
-            buildOrderMap.TryAdd(icon, new BuildOrderEntry(id, icon, new List<uint>(), new List<uint>()));
+            buildOrderMap.TryAdd(icon, new BuildOrderEntry(id, icon, new List<uint>(), new List<uint>(), new List<uint>()));
             var buildOrderEntry = buildOrderMap[icon];
 
             if (type == "spawn" || type == "initial") {
                 buildOrderEntry.Spawned.Add(timestamp);
             } else if (type == "death") {
                 buildOrderEntry.Destroyed.Add(timestamp);
+            } else if (type == "unknown") {
+                buildOrderEntry.Unknown.Add(timestamp);
             }
         }
 
