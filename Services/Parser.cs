@@ -9,7 +9,7 @@ public class Parser
         string Name,
         Scores Scores,
         Dictionary<string, List<uint>> Resources,
-        Resources[] ResourcesOld,
+        // Resources[] ResourcesOld,
         BuildOrderEntry[] BuildOrder
     );
 
@@ -170,7 +170,7 @@ public class Parser
                 ProcessPlayer(bytes).Name,
                 scores,
                 resourcesV2,
-                resourcesV1,
+                // resourcesV1,
                 buildOrderV2
             );
 
