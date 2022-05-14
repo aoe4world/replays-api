@@ -9,6 +9,7 @@ public class Parser
         string Name,
         Scores Scores,
         Dictionary<string, List<uint>> Resources,
+        Resources[] ResourcesOld,
         BuildOrderEntry[] BuildOrder
     );
 
@@ -169,6 +170,7 @@ public class Parser
                 ProcessPlayer(bytes).Name,
                 scores,
                 resourcesV2,
+                resourcesV1,
                 buildOrderV2
             );
 
@@ -180,7 +182,12 @@ public class Parser
 
     float ParseFloat(byte[] bytes, int position) {
         var segment = bytes[(position)..(position + 4)];
-        return BitConverter.ToSingle(segment);
+        var value = BitConverter.ToSingle(segment);
+        if (float.IsFinite(value)) {
+            return value;
+        } else {
+            return 9999999999.0f;
+        }
     }
 
     Player ProcessPlayer(byte[] bytes) {
