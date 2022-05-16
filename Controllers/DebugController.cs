@@ -4,6 +4,7 @@ using System.Net.Http;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Diagnostics;
 
 namespace AoE4WorldReplaysAPI.Controllers;
 
@@ -26,8 +27,13 @@ public class DebugController : ControllerBase {
 
         var dataStream = new MemoryStream((System.IO.File.ReadAllBytes(path)));
 
+        Stopwatch stopwatch = new Stopwatch();
+        stopwatch.Start();
         var parser = new Parser(true);
         var result = parser.Call(dataStream);
+        stopwatch.Stop();
+
+        Response.Headers.Add("X-Parser-Elapsed", stopwatch.ElapsedMilliseconds.ToString());
 
         return result;
     }
