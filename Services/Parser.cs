@@ -52,7 +52,7 @@ public class Parser
         List<uint> Transformed,
         List<uint> Destroyed,
 
-        Dictionary<uint, List<uint>> FooMap
+        Dictionary<uint, List<uint>> Unknown
     );
 
     private bool debug;
@@ -296,13 +296,10 @@ public class Parser
                     Unpacked = new List<uint>(),
                     Transformed = new List<uint>(),
                     Destroyed = new List<uint>(),
-                    FooMap = new Dictionary<uint, List<uint>>()
+                    Unknown = new Dictionary<uint, List<uint>>()
                 }
             );
             var buildOrderEntry = buildOrderMap[icon];
-
-            buildOrderEntry.FooMap.TryAdd(typeId, new List<uint>());
-            buildOrderEntry.FooMap[typeId].Add(timestamp);
 
             if (typeId == 1) {
                 buildOrderEntry.Finished.Add(timestamp);
@@ -337,6 +334,9 @@ public class Parser
                 buildOrderEntry.Finished.Add(timestamp);
             } else if (typeId == 12) {
                 buildOrderEntry.Finished.Add(timestamp);
+            } else {
+                buildOrderEntry.Unknown.TryAdd(typeId, new List<uint>());
+                buildOrderEntry.Unknown[typeId].Add(timestamp);
             }
         }
 
