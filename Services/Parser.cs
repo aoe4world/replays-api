@@ -30,20 +30,27 @@ public class Parser
         float Wood
     );
 
-    public readonly record struct BuildOrderStep(
-        uint Timestamp,
-        string Icon,
-        // uint Foo,
-        string Type,
-        float Foo
-    );
+    public enum BuildOrderEntryType {
+        Unit,
+        Building,
+        Upgrade,
+        Animal,
+        Age,
+        Unknown
+    }
 
     public record struct BuildOrderEntry(
         string Id,
         string Icon,
-        List<uint> Spawned,
+
+        BuildOrderEntryType Type,
+
+        List<uint> Finished,
+        List<uint> Constructed,
+        List<uint> Packed,
+        List<uint> Transformed,
         List<uint> Destroyed,
-        List<uint> Unknown,
+
         Dictionary<uint, List<uint>> FooMap
     );
 
@@ -165,7 +172,7 @@ public class Parser
         if (node.Header.Name == "STLS") {
             ProcessResources(bytes);
         } else if (node.Header.Name == "STPD") {
-            var (buildOrderV1, buildOrderV2) = ProcessBuildOrder(bytes);
+            var buildOrder = ProcessBuildOrder(bytes);
             var (resourcesV1, resourcesV2) = ProcessResources(bytes);
             var scores = ProcessScores(bytes);
 
@@ -174,7 +181,7 @@ public class Parser
                 scores,
                 resourcesV2,
                 // resourcesV1,
-                buildOrderV2
+                buildOrder
             );
 
             result.Add(playerSummary);
@@ -230,10 +237,9 @@ public class Parser
         return value;
     }
 
-    (BuildOrderStep[], BuildOrderEntry[]) ProcessBuildOrder(byte[] bytes) {
+    BuildOrderEntry[] ProcessBuildOrder(byte[] bytes) {
         var positions = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}); // icons
 
-        var buildOrder = new List<BuildOrderStep>();
         var buildOrderMap = new Dictionary<string, BuildOrderEntry>();
         var spawnIdMap = new Dictionary<string, byte>();
 
@@ -253,58 +259,78 @@ public class Parser
                 spawnIdMap.Add(normalizedIcon, typeId);
             }
 
-            var type = "";
-
-            if (timestamp == 0) {
-                type = "initial";
-            } else if (spawnIdMap[normalizedIcon] == typeId) {
-                type = "spawn";
-            } else if (spawnIdMap[normalizedIcon] == typeId - 1) {
-                type = "death";
-            } else {
-                type = "unknown";
-            }
-
-            var step = new BuildOrderStep(
-                timestamp,
-                icon,
-                // segment[0],
-                type,
-                typeId
-            );
-
             if (scanningInitial && timestamp != 0) {
                 scanningInitial = false;
 
                 foreach (var entry in buildOrderMap.Values) {
-                    entry.Spawned.RemoveRange(entry.Spawned.Count / 2, entry.Spawned.Count / 2);
+                    entry.Finished.RemoveRange(entry.Finished.Count / 2, entry.Finished.Count / 2);
+                    entry.Constructed.RemoveRange(entry.Constructed.Count / 2, entry.Constructed.Count / 2);
                 }
             }
 
-            buildOrder.Add(step);
+            var type = BuildOrderEntryType.Unknown;
 
-            buildOrderMap.TryAdd(icon, new BuildOrderEntry(id, icon, new List<uint>(), new List<uint>(), new List<uint>(), new Dictionary<uint, List<uint>>()));
+            if (icon.Contains("/buildings/")) {
+                type = BuildOrderEntryType.Building;
+            } else if (icon.Contains("/units/")) {
+                type = BuildOrderEntryType.Unit;
+            } else if (icon.Contains("/upgrades/") || icon.Contains("/uprades/")) {
+                type = BuildOrderEntryType.Upgrade;
+            } else if (icon.Contains("/animals/")) {
+                type = BuildOrderEntryType.Animal;
+            } else if (icon.Contains("/age/")) {
+                type = BuildOrderEntryType.Age;
+            }
+
+            buildOrderMap.TryAdd(
+                icon,
+                new BuildOrderEntry {
+                    Id = id,
+                    Icon = icon,
+                    Type = type,
+                    Finished = new List<uint>(),
+                    Constructed = new List<uint>(),
+                    Packed = new List<uint>(),
+                    Transformed = new List<uint>(),
+                    Destroyed = new List<uint>(),
+                    FooMap = new Dictionary<uint, List<uint>>()
+                }
+            );
             var buildOrderEntry = buildOrderMap[icon];
 
             buildOrderEntry.FooMap.TryAdd(typeId, new List<uint>());
             buildOrderEntry.FooMap[typeId].Add(timestamp);
 
-            if (type == "spawn" || type == "initial") {
-                buildOrderEntry.Spawned.Add(timestamp);
-            } else if (type == "death") {
+            if (typeId == 1) {
+                buildOrderEntry.Finished.Add(timestamp);
+            } else if (typeId == 2) {
                 buildOrderEntry.Destroyed.Add(timestamp);
-            } else if (type == "unknown") {
-                buildOrderEntry.Unknown.Add(timestamp);
+            } else if (typeId == 3) {
+                if (type == BuildOrderEntryType.Building) {
+                    buildOrderEntry.Packed.Add(timestamp);
+                } else {
+                    buildOrderEntry.Finished.Add(timestamp);
+                }
+            } else if (typeId == 4) {
+                buildOrderEntry.Destroyed.Add(timestamp);
+            } else if (typeId == 5) {
+                buildOrderEntry.Constructed.Add(timestamp);
+            } else if (typeId == 6) {
+                if (type == BuildOrderEntryType.Building) {
+                    buildOrderEntry.Destroyed.Add(timestamp);
+                } else {
+                    // ignore as it already exists in the 4 list for siege
+                }
+            } else if (typeId == 8) {
+                buildOrderEntry.Finished.Add(timestamp);
+            } else if (typeId == 12) {
+                buildOrderEntry.Finished.Add(timestamp);
             }
-        }
-
-        foreach (var step in buildOrder) {
-            Console.WriteLine($"{step}");
         }
 
         Console.WriteLine();
 
-        return (buildOrder.ToArray(), buildOrderMap.Values.ToArray());
+        return buildOrderMap.Values.ToArray();
     }
 
     (Resources[], Dictionary<string, List<uint>>) ProcessResources(byte[] bytes) {
