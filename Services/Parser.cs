@@ -48,6 +48,7 @@ public class Parser
         List<uint> Finished,
         List<uint> Constructed,
         List<uint> Packed,
+        List<uint> Unpacked,
         List<uint> Transformed,
         List<uint> Destroyed,
 
@@ -291,6 +292,7 @@ public class Parser
                     Finished = new List<uint>(),
                     Constructed = new List<uint>(),
                     Packed = new List<uint>(),
+                    Unpacked = new List<uint>(),
                     Transformed = new List<uint>(),
                     Destroyed = new List<uint>(),
                     FooMap = new Dictionary<uint, List<uint>>()
@@ -314,7 +316,17 @@ public class Parser
             } else if (typeId == 4) {
                 buildOrderEntry.Destroyed.Add(timestamp);
             } else if (typeId == 5) {
-                buildOrderEntry.Constructed.Add(timestamp);
+                var isUnpacking =
+                    buildOrderEntry.Packed.Count > 0
+                    && buildOrderEntry.Constructed.Count > 0
+                    && ((buildOrderEntry.Packed.Last() > buildOrderEntry.Constructed.Last()))
+                    && (buildOrderEntry.Unpacked.Count == 0 || (buildOrderEntry.Packed.Last() > buildOrderEntry.Unpacked.Last()));
+
+                if (isUnpacking) {
+                    buildOrderEntry.Unpacked.Add(timestamp);
+                } else {
+                    buildOrderEntry.Constructed.Add(timestamp);
+                }
             } else if (typeId == 6) {
                 if (type == BuildOrderEntryType.Building) {
                     buildOrderEntry.Destroyed.Add(timestamp);
