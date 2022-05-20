@@ -43,6 +43,7 @@ public class Parser
         string Icon,
         List<uint> Spawned,
         List<uint> Destroyed,
+        List<uint> Unknown,
         Dictionary<uint, List<uint>> FooMap
     );
 
@@ -282,7 +283,7 @@ public class Parser
 
             buildOrder.Add(step);
 
-            buildOrderMap.TryAdd(icon, new BuildOrderEntry(id, icon, new List<uint>(), new List<uint>(), new Dictionary<uint, List<uint>>()));
+            buildOrderMap.TryAdd(icon, new BuildOrderEntry(id, icon, new List<uint>(), new List<uint>(), new List<uint>(), new Dictionary<uint, List<uint>>()));
             var buildOrderEntry = buildOrderMap[icon];
 
             buildOrderEntry.FooMap.TryAdd(typeId, new List<uint>());
@@ -292,6 +293,8 @@ public class Parser
                 buildOrderEntry.Spawned.Add(timestamp);
             } else if (type == "death") {
                 buildOrderEntry.Destroyed.Add(timestamp);
+            } else if (type == "unknown") {
+                buildOrderEntry.Unknown.Add(timestamp);
             }
         }
 
