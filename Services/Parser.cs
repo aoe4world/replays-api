@@ -266,6 +266,7 @@ public class Parser
                 foreach (var entry in buildOrderMap.Values) {
                     entry.Finished.RemoveRange(entry.Finished.Count / 2, entry.Finished.Count / 2);
                     entry.Constructed.RemoveRange(entry.Constructed.Count / 2, entry.Constructed.Count / 2);
+                    entry.Packed.RemoveRange(entry.Packed.Count / 2, entry.Packed.Count / 2);
                 }
             }
 
@@ -318,8 +319,7 @@ public class Parser
             } else if (typeId == 5) {
                 var isUnpacking =
                     buildOrderEntry.Packed.Count > 0
-                    && buildOrderEntry.Constructed.Count > 0
-                    && ((buildOrderEntry.Packed.Last() > buildOrderEntry.Constructed.Last()))
+                    && (buildOrderEntry.Constructed.Count == 0 || ((buildOrderEntry.Packed.Last() > buildOrderEntry.Constructed.Last())))
                     && (buildOrderEntry.Unpacked.Count == 0 || (buildOrderEntry.Packed.Last() > buildOrderEntry.Unpacked.Last()));
 
                 if (isUnpacking) {
