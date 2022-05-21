@@ -8,6 +8,7 @@ public class Parser
 {
     public record struct PlayerSummary(
         string Name,
+        Dictionary<string, List<BuildOrderAction>> Actions,
         Scores Scores,
         Dictionary<string, List<uint>> Resources,
         // Resources[] ResourcesOld,
@@ -16,6 +17,12 @@ public class Parser
 
     public readonly record struct Player(
         string Name
+    );
+
+    public readonly record struct BuildOrderAction(
+        uint Timestamp,
+        float Foo1,
+        float Foo2
     );
 
     public readonly record struct Resources(
@@ -196,9 +203,11 @@ public class Parser
             var buildOrder = ProcessBuildOrder(bytesSpan);
             var (resourcesV1, resourcesV2) = ProcessResources(bytesSpan);
             var scores = ProcessScores(bytesSpan, resourcesV2);
+            var player = ProcessPlayer(bytesSpan);
 
             var playerSummary = new PlayerSummary(
-                ProcessPlayer(bytesSpan).Name,
+                player.Name,
+                new Dictionary<string, List<BuildOrderAction>>(),
                 scores,
                 resourcesV2,
                 // resourcesV1,
@@ -206,18 +215,72 @@ public class Parser
             );
 
             result.Add(playerSummary);
+        } else if (node.Header.Name == "STLP") {
+            var (name, actions) = ProcessActions(bytesSpan);
+            var currentPlayerSummary = result.Last();
+
+            currentPlayerSummary.Actions.Add(name, actions);
         } else {
             // Console.WriteLine($"unhandled data node: {node.Header.Name}");
         }
     }
 
+    (string, List<BuildOrderAction>) ProcessActions(Span<byte> bytes) {
+        var actions = new List<BuildOrderAction>();
+
+        var name = ParseString(bytes.Slice(5));
+
+        Console.WriteLine($"{name}");
+
+        var firstTimestampPosition = 5 + name.Length + 8;
+
+        var firstAction = new BuildOrderAction {
+            Timestamp = BitConverter.ToUInt32(bytes.Slice(firstTimestampPosition)),
+            Foo1 = BitConverter.ToInt32(bytes.Slice(firstTimestampPosition - 4)),
+            Foo2 = BitConverter.ToInt32(bytes.Slice(firstTimestampPosition + 4))
+        };
+        actions.Add(firstAction);
+
+        var secondTimestampPosition = firstTimestampPosition + 16;
+
+        if (secondTimestampPosition > bytes.Length) {
+            return (name, actions);
+        }
+
+        var secondAction = new BuildOrderAction {
+            Timestamp = BitConverter.ToUInt32(bytes.Slice(secondTimestampPosition)),
+            Foo1 = ParseFloat(bytes.Slice(secondTimestampPosition - 4), 0),
+            Foo2 = ParseFloat(bytes.Slice(secondTimestampPosition - 8), 0)
+        };
+        actions.Add(secondAction);
+
+        var cursor = secondTimestampPosition + 12;
+        while (cursor < bytes.Length) {
+            var action = new BuildOrderAction {
+                Timestamp = BitConverter.ToUInt32(bytes.Slice(cursor)),
+                Foo1 = ParseFloat(bytes.Slice(cursor - 4), 0),
+                Foo2 = ParseFloat(bytes.Slice(cursor - 8), 0)
+            };
+
+            actions.Add(action);
+
+            cursor += 12;
+        }
+
+        return (name, actions);
+    }
+
     float ParseFloat(Span<byte> bytes, int position) {
+        if (bytes.Length < position + 4) {
+            return Single.NaN;
+        }
+
         var segment = bytes.Slice(position, 4);
         var value = BitConverter.ToSingle(segment);
         if (float.IsFinite(value)) {
             return value;
         } else {
-            return 9999999999.0f;
+            return Single.NaN;
         }
     }
 
@@ -241,7 +304,7 @@ public class Parser
     }
 
     string ParseUnicodeString(Span<byte> bytes) {
-        var playerNameLength = BitConverter.ToUInt32(bytes[4..8]);
+        var playerNameLength = BitConverter.ToUInt32(bytes.Slice(4, 4));
 
         var value = "";
 
