@@ -64,7 +64,7 @@ public class Parser
         float Economy, // 72 vs 192
         float Technology, // 0 vs 0
         float Society, // 140 vs 140
-        float[] Foos
+        float[] All
         // float Foo1,
         // float Foo2,
         // float Foo3,
@@ -94,40 +94,40 @@ public class Parser
 
         var values = new List<float>();
 
-        for (int i = 0; i < 15; i++) {
-            values.AddRange(new float[] {
-                ParseFloat(bytes, cursor),
-                ParseFloat(bytes, cursor += 4),
-                ParseFloat(bytes, cursor += 4),
-                ParseFloat(bytes, cursor += 4),
-                ParseFloat(bytes, cursor += 4),
-                BitConverter.ToInt32(bytes.Slice(cursor += 4)),
-            });
+        while (cursor < firstIconsPosition) {
+            var f1 = ParseFloat(bytes, cursor);
+            var f2 = ParseFloat(bytes, cursor += 4);
+            var f3 = ParseFloat(bytes, cursor += 4);
+            var f4 = ParseFloat(bytes, cursor += 4);
+            var f5 = ParseFloat(bytes, cursor += 4);
+            var i = BitConverter.ToInt32(bytes.Slice(cursor += 4));
+
+            if (f1 < 0 || f2 < 0 || f3 < 0 || f4 < 0 || f5 < 0) {
+                break;
+            }
+
+            if ((f1 > 0 && f1 < 0.001) || (f2 > 0 && f2 < 0.001) || (f3 > 0 && f3 < 0.001) || (f4 > 0 && f4 < 0.001) || (f5 > 0 && f5 < 0.001)) {
+                break;
+            }
+
+            if (f1 > 999999 || f2 > 999999 || f3 > 999999 || f4 > 999999 || f5 > 999999) {
+                break;
+            }
+
+            values.AddRange(new float[] {f1, f2, f3, f4, f5, i});
             cursor += 4;
         }
 
-        for (int i = 0; i < 25; i++) {
-            values.AddRange(new float[] {
-                BitConverter.ToInt32(bytes.Slice(cursor)),
-            });
-            cursor += 4;
-        }
+        values.Reverse();
 
-        var scores = new Scores {
-            // values[4],
-            TotalScore = values[82],
-            // values[1],
-            Military = values[85],
-            // Economy = values[0],
-            Economy = values[84],
-            // Technology = values[3],
-            Technology = values[87],
-            // Society = values[2],
-            Society = values[86],
-            Foos = debug ? values.ToArray() : new float[0]
+        return new Scores {
+            TotalScore = values[1],
+            Military = values[4],
+            Economy = values[5],
+            Technology = values[8],
+            Society = values[3],
+            All = values.ToArray()
         };
-
-        return scores;
     }
 
     public Parser(bool debugEnabled) {
