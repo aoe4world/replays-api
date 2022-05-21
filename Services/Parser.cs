@@ -131,8 +131,7 @@ public class Parser
     }
 
     public Parser(bool debugEnabled) {
-        // debug = debugEnabled;
-        debug = false;
+        debug = debugEnabled;
     }
 
     public PlayerSummary[] Call(MemoryStream replayData)
