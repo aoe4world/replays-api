@@ -73,9 +73,22 @@ public class Parser
         // float Foo6
     );
 
-    Scores ProcessScores(byte[] bytes) {
-        int firstIconsPosition = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}).First();
-        int previousWoodPosition = FindByteSequencePositions(bytes, new byte[] {119, 111, 111, 100}).Where(p => p < firstIconsPosition).Last();
+
+    class ByteStrings {
+        public static readonly byte[] ACTION = new byte[] {0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E};
+        public static readonly byte[] COMMAND = new byte[] {0x63, 0x6F, 0x6D, 0x6D, 0x61, 0x6E, 0x64};
+        public static readonly byte[] FOOD = new byte[] {102, 111, 111, 100};
+        public static readonly byte[] GOLD = new byte[] {103, 111, 108, 100};
+        public static readonly byte[]  MILITIA_HRE = new byte[] {0x6D, 0x69, 0x6C, 0x69, 0x74, 0x69, 0x61, 0x5F, 0x68, 0x72, 0x65};
+        public static readonly byte[] POPCAP = new byte[] {0x70, 0x6F, 0x70, 0x63, 0x61, 0x70};
+        public static readonly byte[] STONE = new byte[] {115, 116, 111, 110, 101};
+        public static readonly byte[] WOOD = new byte[] {119, 111, 111, 100};
+        public static readonly byte[] ICONS = new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73};
+    }
+
+    Scores ProcessScores(Span<byte> bytes) {
+        int firstIconsPosition = FindByteSequencePositions(bytes, ByteStrings.ICONS).First();
+        int previousWoodPosition = FindByteSequencePositions(bytes, ByteStrings.WOOD).Where(p => p < firstIconsPosition).Last();
         int startPosition = previousWoodPosition + 20;
         int cursor = startPosition;
 
@@ -88,14 +101,14 @@ public class Parser
                 ParseFloat(bytes, cursor += 4),
                 ParseFloat(bytes, cursor += 4),
                 ParseFloat(bytes, cursor += 4),
-                BitConverter.ToInt32(bytes, cursor += 4),
+                BitConverter.ToInt32(bytes.Slice(cursor += 4)),
             });
             cursor += 4;
         }
 
         for (int i = 0; i < 25; i++) {
             values.AddRange(new float[] {
-                BitConverter.ToInt32(bytes, cursor),
+                BitConverter.ToInt32(bytes.Slice(cursor)),
             });
             cursor += 4;
         }
@@ -118,7 +131,8 @@ public class Parser
     }
 
     public Parser(bool debugEnabled) {
-        debug = debugEnabled;
+        // debug = debugEnabled;
+        debug = false;
     }
 
     public PlayerSummary[] Call(MemoryStream replayData)
@@ -139,8 +153,10 @@ public class Parser
     void Traverse(List<PlayerSummary> result, IChunkyNode node, int depth) {
         var indentation = new string(' ', depth * 2);
 
-        Console.WriteLine($"{indentation}node (type: {node.Header.Type}, name: {node.Header.Name}, version: {node.Header.Version}, length: {node.Header.Length}, path: {node.Header.Path})");
-        Console.WriteLine($"{indentation}{node.Header.Type}");
+        if (debug) {
+            Console.WriteLine($"{indentation}node (type: {node.Header.Type}, name: {node.Header.Name}, version: {node.Header.Version}, length: {node.Header.Length}, path: {node.Header.Path})");
+            Console.WriteLine($"{indentation}{node.Header.Type}");
+        }
 
         if (node.Header.Type == "FOLD") {
             var folder = (IChunkyFolderNode) node;
@@ -166,19 +182,20 @@ public class Parser
         if (debug) {
             var outPath = $"output/{fileCounter++}_{node.Header.Name}.bin";
             File.WriteAllBytes(outPath, bytes);
+            Console.WriteLine($"{indentation}{node.Header.Name}");
         }
 
-        Console.WriteLine($"{indentation}{node.Header.Name}");
+        var bytesSpan = bytes.AsSpan();
 
         if (node.Header.Name == "STLS") {
-            ProcessResources(bytes);
+            ProcessResources(bytesSpan);
         } else if (node.Header.Name == "STPD") {
-            var buildOrder = ProcessBuildOrder(bytes);
-            var (resourcesV1, resourcesV2) = ProcessResources(bytes);
-            var scores = ProcessScores(bytes);
+            var buildOrder = ProcessBuildOrder(bytesSpan);
+            var (resourcesV1, resourcesV2) = ProcessResources(bytesSpan);
+            var scores = ProcessScores(bytesSpan);
 
             var playerSummary = new PlayerSummary(
-                ProcessPlayer(bytes).Name,
+                ProcessPlayer(bytesSpan).Name,
                 scores,
                 resourcesV2,
                 // resourcesV1,
@@ -191,8 +208,12 @@ public class Parser
         }
     }
 
-    float ParseFloat(byte[] bytes, int position) {
-        var segment = bytes[(position)..(position + 4)];
+    float ParseFloat(Span<byte> bytes, int position) {
+        if (debug) {
+            Console.WriteLine($"length: {bytes.Length}, position: {position}");
+        }
+
+        var segment = bytes.Slice(position, 4);
         var value = BitConverter.ToSingle(segment);
         if (float.IsFinite(value)) {
             return value;
@@ -201,30 +222,32 @@ public class Parser
         }
     }
 
-    Player ProcessPlayer(byte[] bytes) {
+    Player ProcessPlayer(Span<byte> bytes) {
         var playerNameLength = BitConverter.ToUInt32(bytes[4..8]);
 
         var playerName = "";
 
         for (int i = 0; i < playerNameLength; i++) {
-            var charBytes = bytes[(8 + i * 2)..(8 + (i + 1) * 2)];
+            var charBytes = bytes.Slice(8 + i * 2, 2);
             var ch = BitConverter.ToChar(charBytes);
 
             playerName += ch;
         }
 
-        Console.WriteLine($"Player: {playerName}");
+        if (debug) {
+            Console.WriteLine($"Player: {playerName}");
+        }
 
         return new Player(playerName);
     }
 
-    string ParseUnicodeString(byte[] bytes) {
+    string ParseUnicodeString(Span<byte> bytes) {
         var playerNameLength = BitConverter.ToUInt32(bytes[4..8]);
 
         var value = "";
 
         for (int i = 0; i < playerNameLength; i++) {
-            var charBytes = bytes[(8 + i * 2)..(8 + (i + 1) * 2)];
+            var charBytes = bytes.Slice(8 + i * 2, 2);
 
             if (charBytes[0] == 0 && charBytes[1] == 0) {
                 break;
@@ -238,7 +261,7 @@ public class Parser
         return value;
     }
 
-    BuildOrderEntry[] ProcessBuildOrder(byte[] bytes) {
+    BuildOrderEntry[] ProcessBuildOrder(Span<byte> bytes) {
         var positions = FindByteSequencePositions(bytes, new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73}); // icons
 
         var buildOrderMap = new Dictionary<string, BuildOrderEntry>();
@@ -247,12 +270,12 @@ public class Parser
         var scanningInitial = true;
 
         foreach (var position in positions) {
-            var segment = bytes[(position - 21)..];
-            var timestampSegment = bytes[(position - 8)..];
+            var segment = bytes.Slice(position - 21);
+            var timestampSegment = bytes.Slice(position - 8);
 
             var timestamp = BitConverter.ToUInt32(timestampSegment[0..4]);
-            var icon = ParseString(bytes[position..]).Replace('\\', '/');
-            var id = ParseUnicodeString(bytes[(position + icon.Length - 2)..]);
+            var icon = ParseString(bytes.Slice(position)).Replace('\\', '/');
+            var id = ParseUnicodeString(bytes.Slice(position + icon.Length - 2));
             var typeId = FindByteSequenceValueByte("$ 0", timestampSegment, new byte[] {0x24, 0x00, 0x30, 0x00});
             var normalizedIcon = Regex.Replace(icon, @"_\d$", ",");
 
@@ -329,6 +352,8 @@ public class Parser
                     buildOrderEntry.Destroyed.Add(timestamp);
                 } else {
                     // ignore as it already exists in the 4 list for siege
+                    buildOrderEntry.Unknown.TryAdd(typeId, new List<uint>());
+                    buildOrderEntry.Unknown[typeId].Add(timestamp);
                 }
             } else if (typeId == 8) {
                 buildOrderEntry.Finished.Add(timestamp);
@@ -340,32 +365,30 @@ public class Parser
             }
         }
 
-        Console.WriteLine();
-
         return buildOrderMap.Values.ToArray();
     }
 
-    (Resources[], Dictionary<string, List<uint>>) ProcessResources(byte[] bytes) {
+    (Resources[], Dictionary<string, List<uint>>) ProcessResources(Span<byte> bytes) {
         var resourcesV2 = new Dictionary<string, List<uint>>();
 
-        var positions = FindByteSequencePositions(bytes, new byte[] {0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E});
+        var positions = FindByteSequencePositions(bytes, ByteStrings.ACTION);
 
         var allResourcesSnapshots = new List<Resources>();
         var relevantResourcesSnapshots = new List<Resources>();
 
         foreach (var position in positions) {
-            var segment = bytes[(position - 12)..];
+            var segment = bytes.Slice(position - 12);
 
             var record = new Resources(
                 BitConverter.ToUInt32(segment[0..4]),
-                FindByteSequenceValue("action", segment, new byte[] {0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E}),
-                FindByteSequenceValue("command", segment, new byte[] {0x63, 0x6F, 0x6D, 0x6D, 0x61, 0x6E, 0x64}),
-                FindByteSequenceValue("food", segment, new byte[] {102, 111, 111, 100}),
-                FindByteSequenceValue("gold", segment, new byte[] {103, 111, 108, 100}),
-                FindByteSequenceValue("militia_hre", segment, new byte[] {0x6D, 0x69, 0x6C, 0x69, 0x74, 0x69, 0x61, 0x5F, 0x68, 0x72, 0x65}),
-                FindByteSequenceValue("popcap", segment, new byte[] {0x70, 0x6F, 0x70, 0x63, 0x61, 0x70}),
-                FindByteSequenceValue("stone", segment, new byte[] {115, 116, 111, 110, 101}),
-                FindByteSequenceValue("wood", segment, new byte[] {119, 111, 111, 100})
+                FindByteSequenceValue("action", segment, ByteStrings.ACTION),
+                FindByteSequenceValue("command", segment, ByteStrings.COMMAND),
+                FindByteSequenceValue("food", segment, ByteStrings.FOOD),
+                FindByteSequenceValue("gold", segment, ByteStrings.GOLD),
+                FindByteSequenceValue("militia_hre", segment, ByteStrings.MILITIA_HRE),
+                FindByteSequenceValue("popcap", segment, ByteStrings.POPCAP),
+                FindByteSequenceValue("stone", segment, ByteStrings.STONE),
+                FindByteSequenceValue("wood", segment, ByteStrings.WOOD)
             );
 
             allResourcesSnapshots.Add(record);
@@ -389,14 +412,16 @@ public class Parser
             }
         }
 
-        foreach (var resources in allResourcesSnapshots) {
-            Console.WriteLine($"{resources}");
+        if (debug) {
+            foreach (var resources in allResourcesSnapshots) {
+                Console.WriteLine($"{resources}");
+            }
         }
 
         return (relevantResourcesSnapshots.ToArray(), resourcesV2);
     }
 
-    string ParseString(byte[] bytes) {
+    string ParseString(Span<byte> bytes) {
         var chars = new List<char>();
 
         for (int i = 0; i < 100; i++) {
@@ -409,8 +434,14 @@ public class Parser
         return new string(chars.ToArray());
     }
 
-    float FindByteSequenceValue(string label, byte[] bytes, byte[] sequence) {
+    float FindByteSequenceValue(string label, Span<byte> bytes, byte[] sequence) {
+        int maxDistance = 10_000;
+
         for (int i = 0; i < bytes.Length - sequence.Length; i++) {
+            if (i > maxDistance) {
+                break;
+            }
+
             bool found = true;
             int j = 0;
 
@@ -422,7 +453,7 @@ public class Parser
             }
 
             if (found) {
-                var segment = bytes[(i + j)..(i + j + 4)];
+                var segment = bytes.Slice(i + j, 4);
                 return BitConverter.ToSingle(segment);
             }
 
@@ -431,7 +462,7 @@ public class Parser
         return 0;
     }
 
-    byte FindByteSequenceValueByte(string label, byte[] bytes, byte[] sequence) {
+    byte FindByteSequenceValueByte(string label, Span<byte> bytes, byte[] sequence) {
         for (int i = 0; i < bytes.Length - sequence.Length; i++) {
             bool found = true;
             int j = 0;
@@ -444,7 +475,7 @@ public class Parser
             }
 
             if (found) {
-                var segment = bytes[(i + j)..(i + j + 4)];
+                var segment = bytes.Slice(i + j, 4);
                 return bytes[i + j];
                 // return BitConverter.ToSingle(segment);
             }
@@ -454,7 +485,7 @@ public class Parser
         return 0;
     }
 
-    int[] FindByteSequencePositions(byte[] bytes, byte[] sequence) {
+    List<int> FindByteSequencePositions(Span<byte> bytes, byte[] sequence) {
         var positions = new List<int>();
 
         for (int i = 0; i < bytes.Length - sequence.Length; i++) {
@@ -473,6 +504,6 @@ public class Parser
             }
         }
 
-        return positions.ToArray();
+        return positions;
     }
 }
