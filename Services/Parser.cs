@@ -8,7 +8,7 @@ public class Parser
 {
     public record struct PlayerSummary(
         string Name,
-        Dictionary<string, List<BuildOrderAction>> Actions,
+        Dictionary<string, List<uint>> Actions,
         Scores Scores,
         Dictionary<string, List<uint>> Resources,
         // Resources[] ResourcesOld,
@@ -207,7 +207,7 @@ public class Parser
 
             var playerSummary = new PlayerSummary(
                 player.Name,
-                new Dictionary<string, List<BuildOrderAction>>(),
+                new Dictionary<string, List<uint>>(),
                 scores,
                 resourcesV2,
                 // resourcesV1,
@@ -216,21 +216,26 @@ public class Parser
 
             result.Add(playerSummary);
         } else if (node.Header.Name == "STLP") {
-            var (name, actions) = ProcessActions(bytesSpan);
+            var (name, timestamps) = ProcessActions(bytesSpan);
             var currentPlayerSummary = result.Last();
 
-            currentPlayerSummary.Actions.Add(name, actions);
+            if (shouldReturnAction(name) && timestamps.Count > 0) {
+                currentPlayerSummary.Actions.Add(name, timestamps);
+            }
         } else {
             // Console.WriteLine($"unhandled data node: {node.Header.Name}");
         }
     }
 
-    (string, List<BuildOrderAction>) ProcessActions(Span<byte> bytes) {
+    bool shouldReturnAction(string actionName) {
+        return actionName.Contains("relic") || actionName.Contains("holy");
+    }
+
+    (string, List<uint>) ProcessActions(Span<byte> bytes) {
         var actions = new List<BuildOrderAction>();
+        var timestamps = new List<uint>();
 
         var name = ParseString(bytes.Slice(5));
-
-        Console.WriteLine($"{name}");
 
         var firstTimestampPosition = 5 + name.Length + 8;
 
@@ -244,7 +249,7 @@ public class Parser
         var secondTimestampPosition = firstTimestampPosition + 16;
 
         if (secondTimestampPosition > bytes.Length) {
-            return (name, actions);
+            return (name, timestamps);
         }
 
         var secondAction = new BuildOrderAction {
@@ -252,6 +257,7 @@ public class Parser
             Foo1 = ParseFloat(bytes.Slice(secondTimestampPosition - 4), 0),
             Foo2 = ParseFloat(bytes.Slice(secondTimestampPosition - 8), 0)
         };
+        timestamps.Add(secondAction.Timestamp);
         actions.Add(secondAction);
 
         var cursor = secondTimestampPosition + 12;
@@ -262,12 +268,13 @@ public class Parser
                 Foo2 = ParseFloat(bytes.Slice(cursor - 8), 0)
             };
 
+            timestamps.Add(action.Timestamp);
             actions.Add(action);
 
             cursor += 12;
         }
 
-        return (name, actions);
+        return (name, timestamps);
     }
 
     float ParseFloat(Span<byte> bytes, int position) {
