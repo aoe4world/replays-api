@@ -59,18 +59,11 @@ public class Parser
     private int fileCounter = 0;
 
     public readonly record struct Scores(
-        float TotalScore, // 226 vs 374
-        float Military, // 14 vs 42
-        float Economy, // 72 vs 192
-        float Technology, // 0 vs 0
-        float Society, // 140 vs 140
-        float[] All
-        // float Foo1,
-        // float Foo2,
-        // float Foo3,
-        // float Foo4,
-        // float Foo5,
-        // float Foo6
+        float Total,
+        float Military,
+        float Economy,
+        float Technology,
+        float Society
     );
 
 
@@ -86,7 +79,7 @@ public class Parser
         public static readonly byte[] ICONS = new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73};
     }
 
-    Scores ProcessScores(Span<byte> bytes) {
+    Scores ProcessScores(Span<byte> bytes, Dictionary<string, List<uint>> result) {
         int firstIconsPosition = FindByteSequencePositions(bytes, ByteStrings.ICONS).First();
         int previousWoodPosition = FindByteSequencePositions(bytes, ByteStrings.WOOD).Where(p => p < firstIconsPosition).Last();
         int startPosition = previousWoodPosition + 20;
@@ -118,15 +111,26 @@ public class Parser
             cursor += 4;
         }
 
-        values.Reverse();
+        result.Add("total", new List<uint>{ 0 });
+        result.Add("military", new List<uint>{ 0 });
+        result.Add("economy", new List<uint>{ 0 });
+        result.Add("technology", new List<uint>{ 0 });
+        result.Add("society", new List<uint>{ 0 });
+
+        for (int i = 0; i < values.Count - 6; i += 6) {
+            result["economy"].Add((uint)values[i]);
+            result["military"].Add((uint)values[i + 1]);
+            result["society"].Add((uint)values[i + 2]);
+            result["technology"].Add((uint)values[i + 3]);
+            result["total"].Add((uint)values[i + 4]);
+        }
 
         return new Scores {
-            TotalScore = values[1],
-            Military = values[4],
-            Economy = values[5],
-            Technology = values[8],
-            Society = values[3],
-            All = values.ToArray()
+            Economy = values[values.Count - 6],
+            Military = values[values.Count - 5],
+            Society = values[values.Count - 4],
+            Technology = values[values.Count - 3],
+            Total = values[values.Count - 2]
         };
     }
 
@@ -191,7 +195,7 @@ public class Parser
         } else if (node.Header.Name == "STPD") {
             var buildOrder = ProcessBuildOrder(bytesSpan);
             var (resourcesV1, resourcesV2) = ProcessResources(bytesSpan);
-            var scores = ProcessScores(bytesSpan);
+            var scores = ProcessScores(bytesSpan, resourcesV2);
 
             var playerSummary = new PlayerSummary(
                 ProcessPlayer(bytesSpan).Name,
@@ -208,10 +212,6 @@ public class Parser
     }
 
     float ParseFloat(Span<byte> bytes, int position) {
-        if (debug) {
-            Console.WriteLine($"length: {bytes.Length}, position: {position}");
-        }
-
         var segment = bytes.Slice(position, 4);
         var value = BitConverter.ToSingle(segment);
         if (float.IsFinite(value)) {
@@ -379,7 +379,7 @@ public class Parser
             var segment = bytes.Slice(position - 12);
 
             var record = new Resources(
-                BitConverter.ToUInt32(segment[0..4]),
+                BitConverter.ToUInt32(segment),
                 FindByteSequenceValue("action", segment, ByteStrings.ACTION),
                 FindByteSequenceValue("command", segment, ByteStrings.COMMAND),
                 FindByteSequenceValue("food", segment, ByteStrings.FOOD),
