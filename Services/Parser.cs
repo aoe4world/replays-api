@@ -219,7 +219,7 @@ public class Parser
             var (name, timestamps) = ProcessActions(bytesSpan);
             var currentPlayerSummary = result.Last();
 
-            if (shouldReturnAction(name) && timestamps.Count > 0) {
+            if (shouldReturnAction(name)) {
                 currentPlayerSummary.Actions.Add(name, timestamps);
             }
         } else {
@@ -228,7 +228,7 @@ public class Parser
     }
 
     bool shouldReturnAction(string actionName) {
-        return actionName.Contains("relic") || actionName.Contains("holy");
+        return actionName.StartsWith("upgrade_") || actionName.EndsWith("_age") || actionName.Contains("relic") || actionName.Contains("holy");
     }
 
     (string, List<uint>) ProcessActions(Span<byte> bytes) {
@@ -249,6 +249,7 @@ public class Parser
         var secondTimestampPosition = firstTimestampPosition + 16;
 
         if (secondTimestampPosition > bytes.Length) {
+            timestamps.Add(firstAction.Timestamp);
             return (name, timestamps);
         }
 
