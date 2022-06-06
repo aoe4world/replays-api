@@ -10,7 +10,7 @@ public class Parser
         string Name,
         Dictionary<string, List<uint>> Actions,
         Scores Scores,
-        Dictionary<string, List<uint>> Resources,
+        Dictionary<string, List<int>> Resources,
         // Resources[] ResourcesOld,
         BuildOrderEntry[] BuildOrder
     );
@@ -26,7 +26,7 @@ public class Parser
     );
 
     public readonly record struct Resources(
-        uint Timestamp,
+        int Timestamp,
         float Action,
         float Command,
         float Food,
@@ -86,7 +86,7 @@ public class Parser
         public static readonly byte[] ICONS = new byte[] {0x69, 0x63, 0x6F, 0x6E, 0x73};
     }
 
-    Scores ProcessScores(Span<byte> bytes, Dictionary<string, List<uint>> result) {
+    Scores ProcessScores(Span<byte> bytes, Dictionary<string, List<int>> result) {
         int firstIconsPosition = FindByteSequencePositions(bytes, ByteStrings.ICONS).First();
         int previousWoodPosition = FindByteSequencePositions(bytes, ByteStrings.WOOD).Where(p => p < firstIconsPosition).Last();
         int startPosition = previousWoodPosition + 20;
@@ -118,18 +118,18 @@ public class Parser
             cursor += 4;
         }
 
-        result.Add("total", new List<uint>{ 0 });
-        result.Add("military", new List<uint>{ 0 });
-        result.Add("economy", new List<uint>{ 0 });
-        result.Add("technology", new List<uint>{ 0 });
-        result.Add("society", new List<uint>{ 0 });
+        result.Add("total", new List<int>{ 0 });
+        result.Add("military", new List<int>{ 0 });
+        result.Add("economy", new List<int>{ 0 });
+        result.Add("technology", new List<int>{ 0 });
+        result.Add("society", new List<int>{ 0 });
 
         for (int i = 0; i < values.Count - 6; i += 6) {
-            result["economy"].Add((uint)values[i]);
-            result["military"].Add((uint)values[i + 1]);
-            result["society"].Add((uint)values[i + 2]);
-            result["technology"].Add((uint)values[i + 3]);
-            result["total"].Add((uint)values[i + 4]);
+            result["economy"].Add((int)values[i]);
+            result["military"].Add((int)values[i + 1]);
+            result["society"].Add((int)values[i + 2]);
+            result["technology"].Add((int)values[i + 3]);
+            result["total"].Add((int)values[i + 4]);
         }
 
         return new Scores {
@@ -438,8 +438,8 @@ public class Parser
         return buildOrderMap.Values.ToArray();
     }
 
-    (Resources[], Dictionary<string, List<uint>>) ProcessResources(Span<byte> bytes) {
-        var resourcesV2 = new Dictionary<string, List<uint>>();
+    (Resources[], Dictionary<string, List<int>>) ProcessResources(Span<byte> bytes) {
+        var resourcesV2 = new Dictionary<string, List<int>>();
 
         var positions = FindByteSequencePositions(bytes, ByteStrings.ACTION);
 
@@ -450,7 +450,7 @@ public class Parser
             var segment = bytes.Slice(position - 12);
 
             var record = new Resources(
-                BitConverter.ToUInt32(segment),
+                BitConverter.ToInt32(segment),
                 FindByteSequenceValue("action", segment, ByteStrings.ACTION),
                 FindByteSequenceValue("command", segment, ByteStrings.COMMAND),
                 FindByteSequenceValue("food", segment, ByteStrings.FOOD),
@@ -468,17 +468,17 @@ public class Parser
             }
 
             if (record.Action == -1) {
-                resourcesV2.TryAdd("timestamps", new List<uint>());
-                resourcesV2.TryAdd("food", new List<uint>());
-                resourcesV2.TryAdd("gold", new List<uint>());
-                resourcesV2.TryAdd("stone", new List<uint>());
-                resourcesV2.TryAdd("wood", new List<uint>());
+                resourcesV2.TryAdd("timestamps", new List<int>());
+                resourcesV2.TryAdd("food", new List<int>());
+                resourcesV2.TryAdd("gold", new List<int>());
+                resourcesV2.TryAdd("stone", new List<int>());
+                resourcesV2.TryAdd("wood", new List<int>());
 
                 resourcesV2["timestamps"].Add(record.Timestamp);
-                resourcesV2["food"].Add((uint) Math.Round(record.Food));
-                resourcesV2["gold"].Add((uint) Math.Round(record.Gold));
-                resourcesV2["stone"].Add((uint) Math.Round(record.Stone));
-                resourcesV2["wood"].Add((uint) Math.Round(record.Wood));
+                resourcesV2["food"].Add(ConvertResourceValue(record.Food));
+                resourcesV2["gold"].Add(ConvertResourceValue(record.Gold));
+                resourcesV2["stone"].Add(ConvertResourceValue(record.Stone));
+                resourcesV2["wood"].Add(ConvertResourceValue(record.Wood));
             }
         }
 
@@ -489,6 +489,16 @@ public class Parser
         }
 
         return (relevantResourcesSnapshots.ToArray(), resourcesV2);
+    }
+
+    int ConvertResourceValue(float value) {
+        int result = (int) Math.Round(value);
+
+        if (result < 0) {
+            result = 0;
+        }
+
+        return result;
     }
 
     string ParseString(Span<byte> bytes) {
