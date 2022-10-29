@@ -1,0 +1,768 @@
+//------------------------------------------------
+//--- 010 Editor v12.0.1 Binary Template
+//
+//      File: replayData
+//   Authors: Taloth Saldono
+//   Version: 0.1
+//   Purpose: Decode AoE4 Replay Data Files
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+//------------------------------------------------
+typedef struct {
+    uint32 length;
+    if (length) {
+        char   value[length];
+    }
+} String <read=formatString, open=suppress>;
+
+string formatStringShort(String &val) {
+    if (val.length) {
+        return Str("%s", val.value);
+    } else {
+        return "";
+    }
+};
+
+string formatString(String &val) {
+    if (val.length) {
+        return Str("\"%s\"", val.value);
+    } else {
+        return "\"\"";
+    }
+};
+
+typedef struct {
+    uint32 length;
+    if (length) {
+        wchar_t value[length];
+    }
+} UString <read=formatUString, open=suppress>;
+
+string formatUStringShort(UString &val) {
+    if (val.length) {
+        return Str("%s", val.value);
+    } else {
+        return "";
+    }
+};
+
+string formatUString(UString &val) {
+    if (val.length) {
+        return Str("\"%s\"", val.value);
+    } else {
+        return "\"\"";
+    }
+};
+
+//------------------------------------------------
+
+typedef struct {
+    String name;
+    float  value;
+} OptionKeyPair <name=this.name.value, read=this.value>;
+
+typedef struct {
+    String sectionName;
+    uint32 length;
+    if (length) {
+        OptionKeyPair items[length] <optimize=false>;
+    }
+} Section;
+
+typedef struct {
+    uint32 length;
+    if (length) {
+        Section sections[length] <optimize=false>;
+    }
+} SectionList;
+
+
+struct DataGameSetupPlayer {
+    ubyte  unknown5;
+    UString playerName;
+    uint32 unknown5;
+    uint32 unknown6;
+    ubyte  unknown7;
+    String  civ;
+
+    ushort unknown8;
+    ushort unknown9;
+    uint32 unknown10Count;
+    String unknown11;
+    float  unknown12;
+
+    uint32 unknown13;
+    uint32 unknown14[5];
+    uint32 unknown15;
+    uint32 unknown16;
+    uint32 unknown17;
+
+    uint32 unknown18; // 'kin'
+    ubyte  unknown19[5];
+
+    UString steamId;
+
+    uint32 unknown20;
+    uint32 unknown21;
+    uint32 unknown22;
+
+    ubyte  unknown23[91];
+    String unknown24Atttributes;
+    uint32 unknown26;
+    uint32 unknown27;
+    uint32 unknown28;
+    uint32 unknown29;
+    uint32 unknown30;
+    uint32 unknown31;
+    uint32 unknown32;
+    uint32 unknown33;
+    uint32 unknown34;
+    uint32 unknown35;
+    uint32 unknown36;
+};
+
+struct DataGameSetupModPack {
+    uint32 unknown1;
+    ubyte modVersion[32];
+    String unknown3;
+};
+
+struct DataGameSetup {
+    uint32 unknown1;
+    uint32 unknown2;
+    ushort unknown3;
+    uint32 playerCount;
+    if (playerCount)
+        DataGameSetupPlayer players[playerCount] <optimize=false>;
+
+    uint32 unknown4;
+    uint32 unknown5;
+    uint32 unknown6;
+    /*String unknown7;
+    uint32 unknown8;
+    uint32 unknown9;
+    uint32 unknown10;
+    uint32 unknown11;
+    uint32 unknown12;
+    uint32 unknown13;
+    uint32 unknown14;
+    SectionList options;
+
+    uint32 unknown15;
+    uint32 unknown16;
+    uint32 unknown17;
+    String unknown18;
+    uint32 unknown19;
+    uint32 unknown20;
+    ushort unknown21;
+    int32  modPackCount;
+    if (modPackCount)
+    {
+        DataGameSetupModPack modPacks[modPackCount];
+    }
+    ushort unknown22c;
+    String mapSize;
+    uint32 unknown23;
+    ubyte  unknown24;
+    String mapName;
+    uint32 unknown25;
+    ubyte  unknown26;
+    String biome;
+    uint32 unknown27;
+    uint32 unknown28;
+    uint32 mapSeed;
+    uint32 unknown30;
+    String minimap;
+    uint32 unknown31;*/
+
+};
+
+//------------------------------------------------
+
+struct DataPLAS {
+    uint32 count;
+    if (count)
+        uint32 playerId[count];
+};
+
+//------------------------------------------------
+
+struct DataGRIF {
+    uint32 count;
+    if (count)
+        uint32 unknown1[count];
+};
+
+//------------------------------------------------
+
+local int32 globalGameTick;
+
+enum <ubyte> CommandType {
+    Unknown3        = 3,   // Probably build/queue unit (vil)
+    Unknown12       = 12, // Or this oen build/queue unit (vil)
+    MoveCommand     = 62,
+    CancelCommand   = 63,
+    BuildCommand    = 65,
+    Unknown105      = 105, // Maybe move vil to gather sheep/kill sheep
+    Unknown123      = 123, // Build Command? Lumber camp.
+    Unknown143      = 143, // This appears to be the 'Surrender' command, but could also be a more global command with Surrender as subtype.
+    PreCommand      = 146, // Triggered Before Command
+    PostCommand     = 148, // Triggered After Command 
+    Periodic1       = 152, // Probably Camera
+    Periodic2       = 153, // Probably Camera
+};
+
+struct CommandFlag {
+  ubyte flags : 7;
+  ubyte queued : 1;
+};
+
+enum <ubyte> CommandAttributeType {
+    Unknown1    = 1,
+    Position    = 2,
+    BuildingId  = 3, 
+    Unknown4    = 4,
+    Unknown5    = 5,
+    Unknown32   = 32,   // Probably UnitID
+    Unknown70   = 70,
+    Unknown95   = 95
+};
+
+struct PosData {
+    int16 unknown1;
+    int32 posA;
+    int32 posB;
+    int32 posC;
+    ubyte rotData[10] <fgcolor=0xff00ff>;
+};
+
+union PosUnion {
+    PosData pos;
+    ubyte posData[24];
+};
+
+typedef struct {
+    CommandAttributeType attributeType;
+
+    switch (attributeType)
+    {
+        case 0:
+            ubyte unknown1;
+            ubyte unknown2;
+            break;
+        case 1:
+            ubyte unknown1;
+            break;
+        case 2:
+            float x;
+            float y;
+            float z;
+            break;
+        case 3:
+            uint32 buildingId;
+            break;
+        case 4:
+            uint32 entityId;
+            //ubyte  unknown5;
+            break;
+        case 16:
+            uint16 unknown1; // 0
+            uint16 unknown6;    // 2816
+            byte unknown7;  // 13 = pos?
+            //byte unknown8;
+    
+            //if (unknown7 == 5)
+            //{
+            //    int  entityId   <comment="This is an entityId like 50007, but purpose unknown">;
+            //}
+            //else if (unknown7 == 13)
+            //{
+            //    float x;
+            //    float y;
+            //    float z;
+            //}
+            break;
+        case 32:
+            ubyte unknown1;
+            ubyte unknown2;
+            ubyte unknown3;
+            break;
+        case 64:
+            uint16 unknown1;
+            uint16 unknown2     <comment="This appears to be the client-side tick, about gameTick - 2">;
+            // Camera movement, but I can't see any coordinates. It could be camera lens location rather than ground location, or maybe a camera matrix.
+            // camera matrix requires 12 floats for translation and rotation, which would need 48 bytes. But we have 25 bytes tops. So that ain't it.
+            PosUnion pos;
+            break;
+        case 66:
+            ubyte unknown1[10]; // To be disected later
+            break;
+        case 67:
+            ubyte unknown1[19]; // To be disected later
+            break;
+        case 68:
+            ubyte unknown1[23]; // To be disected later
+            break;
+        case 69:
+            ubyte unknown1[35]; // To be disected later
+            break;
+        case 70:
+            ubyte unknown1;
+            ubyte unknown2;
+            ubyte unknown3;
+            break;
+        case 72:
+             // To be disected later
+            break;
+        case 77:
+             // To be disected later
+            break;
+        case 95:
+            break;
+        default:
+            ubyte unknown[1230230];
+            break;
+    }
+} ReplayCommandAttribute;
+
+
+typedef struct {
+    int16       size;
+    CommandType commandType;
+    CommandFlag commandFlags; // 0x80 probably 'queued' (yeah, looks very much like 'shift' commands)
+    // Below is from CoH2
+    byte        unknown1        <comment="Appears to be command index in the block">;
+    byte        playerId;
+    short       index;
+    short       category;
+    short       objectId;
+
+    uint32 unknown2;
+    uint32 unknown3;
+    uint32 playerId2;
+
+    //while(size > (FTell() - startof(size)))
+    //    ReplayCommandAttribute attr;
+    
+
+    if (commandType == 3)
+    {
+        ReplayCommandAttribute attr;
+        //ubyte unknown5[3];
+        //uint16 unknown6;
+        //byte unknown7;
+        byte unknown8;
+        int  pbgid;
+        int  playerId3;
+        byte unknown9;
+    }
+    else if (commandType == 12)
+    {
+        if (ReadByte() == 67)
+        {
+            ReplayCommandAttribute attr; // 67
+        }
+        else if (ReadByte() == 68)
+        {
+            ReplayCommandAttribute attr; // 68
+        }
+        else if (ReadByte() == 69)
+        {
+            ReplayCommandAttribute attr; // 69
+        }
+        else if (ReadByte() == 72)
+        {
+            ReplayCommandAttribute attr; // 72
+        }
+        else if (ReadByte() == 77)
+        {
+            ReplayCommandAttribute attr; // 77
+        }
+        else
+        {
+            ReplayCommandAttribute attr; // 16 / 66
+            ReplayCommandAttribute attr; // 4
+        }
+    }
+    else if (commandType == 62)
+    {
+        // LocalCommand_SquadMovePos( PlayerID player, SGroupID sgroup, Position target, Boolean queued, Boolean reverseMove, Boolean split, Real acceptableProximity )
+        // LocalCommand_SquadPos( PlayerID player, SGroupID sgroup, SquadCommandType squadCommand, Position target, Boolean queued ) RETURNS:  =>Send a position command to a squad group.
+        //ReplayCommandAttribute attr; // 32 
+        //ReplayCommandAttribute attr; // 1
+        //ReplayCommandAttribute attr; // 2 = pos
+        //uint16 unknown7;
+        //byte   unknown8;
+
+        //float x;
+        //float y;
+        //float z;
+
+        // note that unknown5 can be 32, designating a unit id coming after.  or 66, which is something else and then the 32:id pair comes later
+        // So unknown5 is part of the commandSubData
+    }
+    else if  (commandType == 123)
+    {
+        ubyte unknown5[3];
+        uint16 unknown6a;
+        uint16 unknown6b;
+        uint32 pbgid;
+        // Note: x goes from South West to North East.
+        //       y goes from South East to North West. 
+        float x1a;
+        float z1a;
+        float y1a;
+        float x1b;
+        float z1b;
+        float y1b;
+        float x1c;
+        float z2c;
+        float y3;
+        // maybe float z; after
+        // 164, -148
+        ubyte unknown8[7];
+        ubyte unitCount;
+        if (unitCount)
+            uint32 unitId[unitCount];
+    }
+    else if (commandType == 146)
+    {
+        ubyte unknown5[5];
+    }
+    else if (commandType == 148)
+    {
+        //ReplayCommandAttribute attr; // 0
+        //ReplayCommandAttribute attr; // 1
+
+        ubyte unknown5;
+        ubyte unknown6;
+        ubyte unknown7;
+        ubyte unknown8;
+    }
+    else if (commandType == 152)
+    {
+        ReplayCommandAttribute attr; // 64
+        //ubyte unknown5[3];
+        //uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
+       // Camera movement, but I can't see any coordinates. It could be camera lens location rather than ground location, or maybe a camera matrix.
+       // camera matrix requires 12 floats for translation and rotation, which would need 48 bytes. But we have 25 bytes tops. So that ain't it.
+        //PosUnion pos;
+    }
+    else if (commandType == 153)
+    {
+        ubyte unknown5[3];
+        uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
+    }
+    /*if (ReadByte() == -1)
+    {
+        byte   unknown6;
+    }
+    else
+    {
+        while(size > (FTell() - startof(size)))
+            ReplayCommandAttribute attr;
+    }*/
+    /*if (commandType == 62)
+    { // Move Command
+        ubyte unknown7[30 + startof(size) - FTell()];
+        ubyte unknown8          <comment="Is 2, could be an attribute id/type">;
+        float x;
+        float y;
+        float z;
+    }
+    else if (commandType == 63)
+    { // Cancel Command
+
+    }*/
+
+    // Optional Location is in here somewhere
+
+    if (size > (FTell() - startof(size)))
+        ubyte remainingCmdData[size + startof(size) - FTell()] <fgcolor=0x00ffff>;
+
+    if (commandType == 152)
+    {
+        //printCamera(this);
+
+    }
+    //uint16 size2        <comment="Size of Subblock, maybe size of bitstream that starts at this field?">;
+    //uint16 unknown3     <comment="For each player this field is two different values, it's unknown what it means">;
+
+    //uint32 unknown4;
+    //ubyte  unknown5[5];
+    //uint32 unknown6;
+    //ubyte  unknown7[3];
+    //uint32 playerId     <fgcolor=0x004fff>;
+    //uint32 unknown8;
+    //ubyte  unknown10[size - 7 * 4];
+
+} ReplayCommand;
+
+void printCamera(ReplayCommand &command) {
+    local string msg = "";
+    local int32 i;
+    for  (i = 0; i < 24; i++) {
+        msg += Str(" %02X", command.pos.posData[i]);
+    }
+
+    local string msg2 = "";
+    local int32 i2;
+    for  (i2 = 0; i2 < 10; i2++) {
+        msg2+= Str(" %02X", command.pos.pos.rotData[i2]);
+    }
+
+    //Printf("%06Xh: tick %4u %s [%08Xh] [%4u] - [%s] - [%6i %6i %6i] [%s] \r\n", startof(command), globalGameTick, formatTime(globalGameTick), command.unknown2, command.unknown6, msg, command.pos.pos.posA, command.pos.pos.posB, command.pos.pos.posC, msg2);
+    //Printf("%06Xh: tick %4u [%08Xh] [%4u] - [%g %g %g] [%g %g %g]\r\n", startof(command), globalGameTick, command.unknown2, command.unknown6, command.posA, command.posB, command.posC, command.rotA, command.rotB, command.rotC);
+};
+
+typedef struct {
+    uint32 playerIndex;
+    uint32 unknown1;
+    uint32 size         <comment="Size of Block">;
+
+    local int32 commandCount = 0;
+    local uint32 posStart = FTell();
+    while (size > (FTell() - posStart))
+    {
+        ReplayCommand commands;
+        commandCount += 1;
+    }
+    //printReplayBlock(this);
+
+    if (unknown1 != 0)  Printf("%xh: ReplayBlock.unknown1 expected 0 was %xh\r\n", startof(unknown1), unknown1);
+    //if (unknown4 != 0)  Printf("%xh: ReplayBlock.unknown4 expected 0 was %xh\r\n", startof(unknown4), unknown4);
+    //if (playerId != 0)  Printf("%xh: ReplayBlock.playerId expected 0 was %xh\r\n", startof(playerId), playerId);
+
+    //if (unknown7[0] != 0)  Printf("%xh: ReplayBlock.unknown7[0] expected 0 was %xh\r\n", startof(unknown7[0]), unknown7[0]);
+} ReplayBlock <read=formatReplayBlock>;
+
+string formatReplayBlock(ReplayBlock &block) {
+    return Str("PlayerIndex %u", block.playerIndex);
+};
+
+void printReplayBlock(ReplayBlock &block) {
+    //Printf("%Xh: [%u] [sz=%u] [sz2=%u] [k=%u] [rs=%lu] \r\n", startof(block), playerIndex, size, size2, unknown3, size - 7 * 4);
+};
+
+enum <uint32> RecordType {
+    GameTick = 0,
+    ChatMessage = 1
+};
+
+typedef struct {
+    uint32 size         <comment="Size of All Blocks in game tick">;
+    ubyte  unknown3     <comment="Always 0x20">;
+    uint32 gameTick     <fgcolor=0x7f7fff, comment="Number of the current game tick">;
+    uint32 unknown4     <comment="Unknown, but maybe a game-state hash, which would be used to detect desyncs">;
+    uint32 blockCount   <comment="The number of blocks in the game tick that come after this block">;
+
+    globalGameTick = gameTick;
+
+    if (blockCount)
+        ReplayBlock blocks[blockCount] <optimize=false>;
+
+    if (unknown3 != 0x20)   Printf("%xh: ReplayTickHeader.unknown3 expected 0x20 was %xh\r\n", startof(unknown3), unknown3);
+
+} ReplayGameTick <read=formatReplayGameTick>;
+
+string formatTime(uint32 tick) {
+    local int32 min = (tick / (8*60));
+    local float sec = (tick % (8*60)) / 8.0;
+    
+    return Str("%u:%06.3f", min, sec);
+};
+
+string formatReplayGameTick(ReplayGameTick &block) {
+    string msg = Str("Game Tick %u - %s", block.gameTick, formatTime(block.gameTick));
+    if (block.blockCount)
+    {
+        string cmds = "";
+        local int32 i, j;
+        for (i = 0; i < block.blockCount; i++)
+        for  (j = 0; j < block.blocks[i].commandCount; j++) {
+            if (cmds != "") cmds += ",";
+            cmds += Str("%u", block.blocks[i].commands[j].commandType);
+        }   
+        msg += Str(" - (%u blocks - %s)", block.blockCount, cmds);
+    }
+    return msg;
+};
+
+// Weird part about chat messages:
+// DonArtie sent a mode=8 message
+// Beasty sent mode=2 'gg' followed by mode=5 'gg' a few gameticks later... obviously same message, but exists twice in the feed
+// 8 = Received
+// 2 = Sent
+// 5 = Echo (Own censored msg)
+typedef struct {
+    uint32 size             <comment="Size of All Blocks in game tick">;
+    uint32 type             <comment="Message Type 0 or 1, 1 = Chat Message, 0 = is something else">;
+    uint32 messageSize      <comment="So far this is size - 8">;
+    if (type == 0) {
+        uint32 playerId     <comment="Player Id (100x)">;
+        uint32 unknown4;
+    } else if (type == 1) {
+        uint32 unknown3     <comment="Message mode maybe, seen 2, 5, 8">;
+        uint32 unknown4     <comment="Unknown, thought it was maybe chat color but it doesn't match">;
+        uint32 unknown5     <comment="Always 0 so far">;
+        UString playerName;
+        UString message;
+        if (unknown5 != 0)   Printf("%xh: ReplayChatMessage.unknown5 expected 0 was %xh\r\n", startof(unknown5), unknown5);
+        return Str("Chat Msg[%u] %s: %s\r\n", unknown3, formatUStringShort(playerName), formatUStringShort(message));
+    } else {
+        Exit(0);
+    }
+} ReplayChatMessage <read=formatReplayChatMessage>;
+
+string formatReplayChatMessage(ReplayChatMessage &block) {
+    if (block.type == 1)
+        return Str("Chat Msg[%u] %s: %s", block.unknown3, formatUStringShort(block.playerName), formatUStringShort(block.message));
+    else
+        return "";
+};
+
+typedef struct {
+    RecordType type;
+    if (type == 0)
+        ReplayGameTick gameTick;
+    else if (type == 1)
+        ReplayChatMessage chatMessage;
+    else {
+        Printf("Unknown Record Type %u", type);
+        Exit(0);    
+    }
+} ReplayRecord <read=formatReplayRecord>;
+
+string formatReplayRecord(ReplayRecord &record) {
+    if (record.type == 0)
+        return formatReplayGameTick(record.gameTick);
+    else if (record.type == 1)
+        return formatReplayChatMessage(record.chatMessage);
+    else
+        return "";
+};
+
+struct ReplayStream {
+    while (!FEof()) {
+        ReplayRecord record;
+    };
+    
+    local uint32 sizeRemaining = FileSize() - FTell();
+    if (sizeRemaining) {
+        Printf("%xh: remainder of %u bytes\r\n", FTell(), sizeRemaining);
+	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
+    }
+};
+
+//------------------------------------------------
+
+struct ChunkyNodePost;
+struct ChunkyNode;
+
+string GetChunkyNodeName(ChunkyNode &node) {
+    return Str("%s:%s", node.type, node.id);
+};
+
+string GetChunkyNodeValue(ChunkyNode &node) {
+    if (node.type == "DATA") {
+        //switch (node.id) {
+		//};
+    }
+    return "";
+};
+
+typedef struct {
+	char   type[4]  <hidden=true>;
+	char   id[4]    <hidden=true>;
+	uint32 version;
+	uint32 length   <hidden=true>;
+	String name;
+    local uint32 posStart = FTell();
+
+	if (type == "FOLD") {
+        while ((FTell()-posStart)<length) {
+            ChunkyNodePost node;
+        }
+    } else if (type == "DATA") {
+        switch (id) {
+            case "DATA":
+                uint32 unknown1;
+                break;
+		};
+    }
+		
+    local uint32 sizeRemaining = length + posStart - FTell();
+    if (sizeRemaining) {
+        Printf("%xh: remainder of %ul bytes\r\n", FTell(), sizeRemaining);
+	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
+    }
+}  ChunkyNodePost;
+
+
+typedef struct {
+	char   type[4]  <hidden=true>;
+	char   id[4]    <hidden=true>;
+	uint32 version;
+	uint32 length   <hidden=true>;
+	String name;
+    local uint32 posStart = FTell();
+
+	if (type == "FOLD") {
+        while ((FTell()-posStart)<length) {
+            ChunkyNode node;
+        }
+    } else if (type == "DATA") {
+        switch (id) {
+            case "DATA":
+                DataGameSetup dataGameSetup;
+                break;
+            case "PLAS":
+                DataPLAS dataPLAS;
+                break;
+            case "GRIF":
+                DataGRIF dataGRIF;
+                break;
+		};
+    }
+		
+    local uint32 sizeRemaining = length + posStart - FTell();
+    if (sizeRemaining) {
+        Printf("%xh: remainder of %ul bytes\r\n", FTell(), sizeRemaining);
+	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
+    }
+}  ChunkyNode <name=GetChunkyNodeName, read=GetChunkyNodeValue>;
+
+struct ChunkyFileHeader {
+	char   magic[16] <open=suppress>;
+	uint32 version;
+	uint32 platform;
+};
+
+struct ChunkyFilePost {
+	ChunkyFileHeader header;
+    ChunkyNodePost   rootNode <open=true>;
+};
+
+struct ChunkyFile {
+	ChunkyFileHeader header;
+    ChunkyNode       rootNode <open=true>;
+};
+
+struct ReplayFile {
+    float   magic1;
+    char    magic2[8];
+    wchar_t date[32] <comment="This is the players local date format and timezone">;
+
+    ChunkyFilePost postData;
+    ChunkyFile replayData;
+    ChunkyNode rootNode <open=true>;
+    ReplayStream stream;
+};
+
+ReplayFile file <open=true>;
+
+//6873

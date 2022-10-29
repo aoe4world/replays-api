@@ -1,8 +1,9 @@
 using AOEMods.Essence.Chunky.Core;
 using AOEMods.Essence.Chunky.Graph;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
-namespace AoE4WorldReplayParser.Services;
+namespace AoE4WorldReplaysParser.Services;
 
 public class Parser
 {
@@ -197,9 +198,55 @@ public class Parser
 
         var bytesSpan = bytes.AsSpan();
 
-        if (node.Header.Name == "STLS") {
+        if (node.Header.Name == "SDSC")
+        {
+            if (node.Header.Version == 3018)
+            {
+                // Map information?
+
+            }
+            else
+            {
+                Console.WriteLine($"Unknown {node.Header.Name} version {node.Header.Version}");
+            }
+        }
+        else if (node.Header.Name == "DATA")
+        {
+            if (node.Header.Version == 57)
+            {
+                // Player and Lobby information
+            }
+            else
+            {
+                Console.WriteLine($"Unknown {node.Header.Name} version {node.Header.Version}");
+            }
+        }
+        else if (node.Header.Name == "PLAS")
+        {
+            if (node.Header.Version == 1)
+            {
+                // Unknown
+            }
+            else
+            {
+                Console.WriteLine($"Unknown {node.Header.Name} version {node.Header.Version}");
+            }
+        }
+        else if (node.Header.Name == "GRIF")
+        {
+            if (node.Header.Version == 2)
+            {
+                // Unknown
+            }
+            else
+            {
+                Console.WriteLine($"Unknown {node.Header.Name} version {node.Header.Version}");
+            }
+        }
+        else if (node.Header.Name == "STLS") {
             ProcessResources(bytesSpan);
         } else if (node.Header.Name == "STPD") {
+            var playerData = ProcessPlayerData(bytes);
             var buildOrder = ProcessBuildOrder(bytesSpan);
             var (resourcesV1, resourcesV2) = ProcessResources(bytesSpan);
             var scores = ProcessScores(bytesSpan, resourcesV2);
@@ -223,7 +270,7 @@ public class Parser
                 currentPlayerSummary.Actions.Add(name, timestamps);
             }
         } else {
-            // Console.WriteLine($"unhandled data node: {node.Header.Name}");
+             Console.WriteLine($"unhandled data node: {node.Header.Name}");
         }
     }
 
@@ -329,6 +376,90 @@ public class Parser
         }
 
         return value;
+    }
+
+    object ProcessPlayerData(byte[] bytes)
+    {
+
+        var yaml = new YamlDotNet.Serialization.Serializer();
+        using (var reader = new RelicBlobReader("", "", new MemoryStream(bytes)))
+        {
+
+            var header = new
+            {
+                unknown1 = reader.ReadUInt32(), // 0x000003ea
+                playerName = reader.ReadPrefixedUnicodeString()
+                /*,
+                unknown2 = reader.ReadUInt32(), // 0x00000005
+                unknown3 = reader.ReadUInt32(),
+                unknown4 = reader.ReadArray(25, r => r.ReadUInt32())*/
+            };
+
+            var data = new List<object>();
+
+            data.Add(new
+            {
+                header = header
+            });
+
+            var positions = FindByteSequencePositions(bytes, new byte[] { 0x06, 0x00, 0x00, 0x00, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e });
+
+            foreach (var position in positions)
+            {
+                var start = position - 4;
+                var offset = start - reader.BaseStream.Position;
+                if  (offset != 0)
+                {
+                    if (offset > 60)
+                    {
+                        int a = 0;
+                    }
+                    var unknownSplit = reader.ReadBytes((int)offset);
+                    data.Add(new
+                    {
+                        unknown = unknownSplit
+                    });
+                }
+                var count = reader.ReadUInt32();
+                var dict = new Dictionary<string, float>();
+                for (var j = 0; j < count; j++)
+                {
+                    var type = reader.ReadPrefixedString();
+                    var value = reader.ReadSingle();
+                    dict[type] = value;
+                }
+
+                data.Add(new
+                {
+                    entry = dict
+                });
+            }
+
+            /*for (var i = 0; i < 50; i++)
+            {
+                var count = reader.ReadUInt32();
+                var dict = new Dictionary<string, float>();
+                for (var j = 0; j < count; j++)
+                {
+                    var type = reader.ReadPrefixedString();
+                    var value = reader.ReadSingle();
+                    dict[type] = value;
+                }
+
+                var unknown5 = reader.ReadArray(12, r => r.ReadUInt32());
+            }*/
+
+            var arr = new byte[reader.BaseStream.Length - reader.BaseStream.Position];
+            reader.BaseStream.Read(arr, 0, arr.Length);
+
+            var yml = yaml.Serialize(data);
+            File.WriteAllText("output/1_STPD_output.yaml", yml);
+            File.WriteAllBytes("output/1_STPD_remainder.bin", arr);
+
+            Debug.WriteLine($"Position = {reader.BaseStream.Position}");
+        }
+
+        return null;
     }
 
     BuildOrderEntry[] ProcessBuildOrder(Span<byte> bytes) {

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using AoE4WorldReplayParser.Services;
+using AoE4WorldReplaysParser.Services;
 using System.Net.Http;
 using System;
 using System.IO;
@@ -19,7 +19,7 @@ public class SummaryController : ControllerBase
     }
 
     [HttpGet(Name = "GetSummary")]
-    public async Task<Parser.PlayerSummary[]> Get(string url)
+    public async Task<AoE4WorldReplaysParser.Services.Parser.PlayerSummary[]> Get(string url)
     {
         var compressedData = await (new HttpClient()).GetStreamAsync(url);
 
@@ -27,7 +27,7 @@ public class SummaryController : ControllerBase
         using var decompressor = new GZipStream(compressedData, CompressionMode.Decompress);
         decompressor.CopyTo(dataStream);
         dataStream.Seek(0, SeekOrigin.Begin);
-        var parser = new Parser(false);
+        var parser = new AoE4WorldReplaysParser.Services.Parser(false);
         var result = parser.Call(dataStream);
 
         return result;

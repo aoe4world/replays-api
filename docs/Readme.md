@@ -1,0 +1,1 @@
+These are work-in-progress 010Editor binary templates for decoding the files
