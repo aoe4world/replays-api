@@ -20,7 +20,7 @@ typedef struct {
 } String <read=formatString, open=suppress>;
 
 string formatStringShort(String &val) {
-    if (val.length) {
+    if (val.length && exists(val.value)) {
         return Str("%s", val.value);
     } else {
         return "";
@@ -28,7 +28,7 @@ string formatStringShort(String &val) {
 };
 
 string formatString(String &val) {
-    if (val.length) {
+    if (val.length && exists(val.value)) {
         return Str("\"%s\"", val.value);
     } else {
         return "\"\"";
@@ -43,7 +43,7 @@ typedef struct {
 } UString <read=formatUString, open=suppress>;
 
 string formatUStringShort(UString &val) {
-    if (val.length) {
+    if (val.length && exists(val.value)) {
         return Str("%s", val.value);
     } else {
         return "";
@@ -51,7 +51,7 @@ string formatUStringShort(UString &val) {
 };
 
 string formatUString(UString &val) {
-    if (val.length) {
+    if (val.length && exists(val.value)) {
         return Str("\"%s\"", val.value);
     } else {
         return "\"\"";
@@ -653,7 +653,7 @@ struct ReplayStream {
     
     local uint32 sizeRemaining = FileSize() - FTell();
     if (sizeRemaining) {
-        Printf("%xh: remainder of %u bytes\r\n", FTell(), sizeRemaining);
+        Printf("%xh: ReplayStream remainder of %u bytes\r\n", FTell(), sizeRemaining);
 	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
     }
 };
@@ -697,7 +697,7 @@ typedef struct {
 		
     local uint32 sizeRemaining = length + posStart - FTell();
     if (sizeRemaining) {
-        Printf("%xh: remainder of %ul bytes\r\n", FTell(), sizeRemaining);
+        Printf("%xh: ChunkyNodePost remainder of %ul bytes\r\n", FTell(), sizeRemaining);
 	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
     }
 }  ChunkyNodePost;
@@ -731,7 +731,7 @@ typedef struct {
 		
     local uint32 sizeRemaining = length + posStart - FTell();
     if (sizeRemaining) {
-        Printf("%xh: remainder of %ul bytes\r\n", FTell(), sizeRemaining);
+        Printf("%xh: ChunkyNode remainder of %ul bytes\r\n", FTell(), sizeRemaining);
 	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
     }
 }  ChunkyNode <name=GetChunkyNodeName, read=GetChunkyNodeValue>;
