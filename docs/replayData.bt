@@ -88,12 +88,19 @@ typedef struct {
     }
 } SectionList;
 
+struct ExtraPlayerData {
+    // Following only for first player??
+    uint32 unknown1[17];
+    ubyte unknown2;
+    String unknown3Attributes;
+    uint32 unknown4[11];
+};
 
 struct DataGameSetupPlayer {
     ubyte  unknown5;
     UString playerName;
-    uint32 unknown5;
-    uint32 unknown6;
+    uint32 unknown5; // Team?
+    uint32 unknown6; // e.g. 1,7,0,3,5 ???
     ubyte  unknown7;
     String  civ;
 
@@ -104,9 +111,9 @@ struct DataGameSetupPlayer {
     float  unknown12;
 
     uint32 unknown13;
-    uint32 unknown14[5];
-    uint32 unknown15;
-    uint32 unknown16;
+    uint32 unknown14[5]; // Always 0xFFFFFFFF ?
+    uint32 unknown15; // e.g. 0,1,2,3,4    Always player index?
+    uint32 unknown16; // e.g. 1,3,6,2,4    Always different for each player?
     uint32 unknown17;
 
     uint32 unknown18; // 'kin'
@@ -116,21 +123,27 @@ struct DataGameSetupPlayer {
 
     uint32 unknown20;
     uint32 unknown21;
-    uint32 unknown22;
+    ushort unknown22a;
+    ushort unknown22b;
 
-    ubyte  unknown23[91];
+    ubyte  unknown23a[18];
+    ubyte  unknown23b;
+    ubyte  unknown23c[72];
     String unknown24Atttributes;
     uint32 unknown26;
     uint32 unknown27;
     uint32 unknown28;
     uint32 unknown29;
-    uint32 unknown30;
-    uint32 unknown31;
+    uint32 unknown30; // Always 0xFFFFFFFF ?
+    uint32 unknown31; // Always 0xFFFFFFFF ?
     uint32 unknown32;
     uint32 unknown33;
     uint32 unknown34;
     uint32 unknown35;
     uint32 unknown36;
+
+    if (unknown23b > 1) // Not sure if this is right. Maybe coincidence: seen 1 or 2.. extra if 2.
+        ExtraPlayerData extra;
 };
 
 struct DataGameSetupModPack {
