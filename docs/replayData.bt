@@ -218,6 +218,12 @@ struct DataGRIF {
         uint32 unknown1[count];
 };
 
+struct DataSDSC {
+    uint32 count;
+    if (count)
+        uint32 unknown1[count];
+};
+
 //------------------------------------------------
 
 local int32 globalGameTick;
@@ -753,6 +759,10 @@ typedef struct {
             case "GRIF":
                 ExpectVersion("ChunkyNode DATA:GRIF", version, 2);
                 DataGRIF dataGRIF;
+                break;
+            case "SDSC":
+                ExpectVersion("ChunkyNode DATA:SDSC", version, 3020);
+                DataSDSC dataSDSC;
                 break;
 		};
     }
