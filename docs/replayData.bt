@@ -60,6 +60,14 @@ string formatUString(UString &val) {
 
 //------------------------------------------------
 
+void ExpectVersion(string name, int read_version, int supported_version) {
+    if (read_version != supported_version) {
+        Printf("%xh: ChunkyFileHeader template supports version %u, read version %u\r\n", FTell(), supported_version, read_version);
+    }
+}
+
+//------------------------------------------------
+
 typedef struct {
     String name;
     float  value;
@@ -555,7 +563,7 @@ enum <uint32> RecordType {
 
 typedef struct {
     uint32 size         <comment="Size of All Blocks in game tick">;
-    ubyte  unknown3     <comment="Always 0x20">;
+    ubyte  unknown3     <comment="Always 0x20">; // version?
     uint32 gameTick     <fgcolor=0x7f7fff, comment="Number of the current game tick">;
     uint32 unknown4     <comment="Unknown, but maybe a game-state hash, which would be used to detect desyncs">;
     uint32 blockCount   <comment="The number of blocks in the game tick that come after this block">;
@@ -664,7 +672,7 @@ struct ChunkyNodePost;
 struct ChunkyNode;
 
 string GetChunkyNodeName(ChunkyNode &node) {
-    return Str("%s:%s", node.type, node.id);
+    return Str("%s:%s (ChunkyNode)", node.type, node.id);
 };
 
 string GetChunkyNodeValue(ChunkyNode &node) {
@@ -679,6 +687,9 @@ typedef struct {
 	char   type[4]  <hidden=true>;
 	char   id[4]    <hidden=true>;
 	uint32 version;
+
+    ExpectVersion("ChunkyNodePost", version, 1);
+
 	uint32 length   <hidden=true>;
 	String name;
     local uint32 posStart = FTell();
@@ -712,18 +723,22 @@ typedef struct {
     local uint32 posStart = FTell();
 
 	if (type == "FOLD") {
+        ExpectVersion("ChunkyNode FOLD:", version, 5);
         while ((FTell()-posStart)<length) {
             ChunkyNode node;
         }
     } else if (type == "DATA") {
         switch (id) {
             case "DATA":
+                ExpectVersion("ChunkyNode DATA:DATA", version, 58);
                 DataGameSetup dataGameSetup;
                 break;
             case "PLAS":
+                ExpectVersion("ChunkyNode DATA:PLAS", version, 1);
                 DataPLAS dataPLAS;
                 break;
             case "GRIF":
+                ExpectVersion("ChunkyNode DATA:GRIF", version, 2);
                 DataGRIF dataGRIF;
                 break;
 		};
@@ -740,6 +755,8 @@ struct ChunkyFileHeader {
 	char   magic[16] <open=suppress>;
 	uint32 version;
 	uint32 platform;
+
+    ExpectVersion("ChunkyFileHeader", version, 4);
 };
 
 struct ChunkyFilePost {
@@ -753,7 +770,7 @@ struct ChunkyFile {
 };
 
 struct ReplayFile {
-    float   magic1;
+    char    magic1[4];
     char    magic2[8];
     wchar_t date[32] <comment="This is the players local date format and timezone">;
 
