@@ -335,23 +335,43 @@ typedef struct {
             ubyte unknown1[23]; // To be disected later
             break;
         case 69:
-            ubyte unknown1[35]; // To be disected later
+            // To be disected later
             break;
         case 70:
             ubyte unknown1;
             ubyte unknown2;
             ubyte unknown3;
             break;
+        case 71:
+            // To be disected later
+            // Seen 35 bytes in age4 6.0.878.0
+            break;
         case 72:
              // To be disected later
             break;
+        case 73:
+            // To be disected later
+            // Seen 43 bytes in age4 6.0.878.0
+            break;
+        case 74:
+            // To be disected later
+            break;
+        case 75:
+            // To be disected later
+            break;
+        case 76:
+            // To be disected later
+            break;
         case 77:
-             // To be disected later
+            // To be disected later
+            break;
+        case 79:
+            // To be disected later
             break;
         case 95:
             break;
         default:
-            ubyte unknown[1230230];
+            ubyte unknown[123023];
             break;
     }
 } ReplayCommandAttribute;
@@ -389,31 +409,10 @@ typedef struct {
     }
     else if (commandType == 12)
     {
-        if (ReadByte() == 67)
-        {
-            ReplayCommandAttribute attr; // 67
-        }
-        else if (ReadByte() == 68)
-        {
-            ReplayCommandAttribute attr; // 68
-        }
-        else if (ReadByte() == 69)
-        {
-            ReplayCommandAttribute attr; // 69
-        }
-        else if (ReadByte() == 72)
-        {
-            ReplayCommandAttribute attr; // 72
-        }
-        else if (ReadByte() == 77)
-        {
-            ReplayCommandAttribute attr; // 77
-        }
-        else
-        {
-            ReplayCommandAttribute attr; // 16 / 66
+        local ubyte peek = ReadByte();
+        ReplayCommandAttribute attr;
+        if (peek == 16 || peek == 66)
             ReplayCommandAttribute attr; // 4
-        }
     }
     else if (commandType == 62)
     {
