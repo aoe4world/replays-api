@@ -270,17 +270,20 @@ enum <ubyte> CommandType {
     MoveCommand     = 62,
     CancelCommand   = 63,
     BuildCommand    = 65,
+    Unknown67       = 67,  // Maybe queue vil?
     Unknown105      = 105, // Maybe move vil to gather sheep/kill sheep
     Unknown123      = 123, // Build Command? Lumber camp.
     Unknown143      = 143, // This appears to be the 'Surrender' command, but could also be a more global command with Surrender as subtype.
     PreCommand      = 146, // Triggered Before Command
     PostCommand     = 148, // Triggered After Command 
     Periodic1       = 152, // Probably Camera
-    Periodic2       = 153, // Probably Camera
+    Periodic2       = 153, // Maybe Camera. Maybe heartbeat.
 };
 
 struct CommandFlag {
   ubyte flags : 7;
+
+  // Is 1 if shift is held. If unit is already idle, can happen immediately.
   ubyte queued : 1;
 };
 
@@ -423,8 +426,13 @@ typedef struct {
     int16       size;
     CommandType commandType;
     CommandFlag commandFlags; // 0x80 probably 'queued' (yeah, looks very much like 'shift' commands)
-    // Below is from CoH2
-    uint16      playerCommandCount <comment="Each player has their own command counter.">; // Always 0 if playerId is 0.
+
+    // Always 0 if playerId is 0.
+    // PreCommand and PostCommand are counted as commands, their value here will be non-zero.
+    // The expected value is 0 or N=1, and N is incremented each time a non-zero value is seen.
+    // e.g. 0, 0, 1, 2, 0, 3, 0, 4, 0, 0, 5, 6, 7
+    uint16      playerCommandCount <comment="Each player has their own command counter.">;
+
     ubyte       unknown1[6];
 
     ubyte  unknown2[8];
@@ -536,6 +544,16 @@ typedef struct {
     else if (commandType == 153)
     {
         ubyte unknown5[3];
+
+        // Observed from each client. Value typically: currentFrameNumber - (around 2 or 4).
+        // Command 153 with different number seems to be in a different ReplayBlock (observed ReplayRecord where a host sends 2 blocks with gameTick, gameTick+1).
+        uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
+    }
+    else if (commandType == 154)
+    {
+        ubyte unknown5[3];
+
+        // Observed from each client. Value typically: currentFrameNumber - (around 2 or 4).
         uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
     }
     /*if (ReadByte() == -1)
@@ -584,13 +602,20 @@ typedef struct {
 } ReplayCommand <read=formatReplayCommand>;
 
 string GetPlayerNameForPlayerId(int id) {
+    if (id == 0) {
+      return "NoPlayer";
+    }
+    if (id < 1000 || id > 1007) {
+      Printf("%xh: UnexpectedPlayerId %u expect 0 or {1000, ..., 1007}\r\n", FTell(), id);
+      return "InvalidPlayer";
+    }
     local int32 i, j;
     local string id_str;
     for (i = 0; i < file.rootNode.nodeCount; i++) {
       id_str = Str("%c%c%c%c", file.rootNode.node[i].id[0], file.rootNode.node[i].id[1], file.rootNode.node[i].id[2], file.rootNode.node[i].id[3]);
       if (id_str == "DATA") {
         for (j = 0; j < file.rootNode.node[i].dataGameSetup.playerCount; j++) {
-          if (file.rootNode.node[i].dataGameSetup.players[j].playerId == id || file.rootNode.node[i].dataGameSetup.players[j].playerId + 1000 == id) {
+          if (file.rootNode.node[i].dataGameSetup.players[j].playerId + 1000 == id) {
             return formatUString(file.rootNode.node[i].dataGameSetup.players[j].playerName);
           }
         }
@@ -600,7 +625,7 @@ string GetPlayerNameForPlayerId(int id) {
 }
 
 string formatReplayCommand(ReplayCommand &command) {
-    return Str("PlayerId %u %s", command.playerId, GetPlayerNameForPlayerId(command.playerId));
+    return Str("PlayerId %u %s %s", command.playerId, GetPlayerNameForPlayerId(command.playerId), EnumToString(command.commandType));
 };
 
 void printCamera(ReplayCommand &command) {
