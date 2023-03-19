@@ -60,7 +60,7 @@ string formatUString(UString &val) {
 
 string formatPlayerColor(ubyte color_id)
 {
-    // Order based on selection drop down, seems to match observed data.
+    // Order based on selection drop down.
     // 0=Blue, 1=Red, 2=Yellow, 3=Green, 4=Teal, 5=Purple, 6=Orange, 7=Pink
     string color_name;
     switch(color_id)
@@ -155,7 +155,6 @@ struct DataGameSetupPlayer {
     ubyte  unknown23a1;
     ubyte  unknown23a2;
 
-    // Seems to be color? This may be wrong.
     ubyte  color <read=formatPlayerColor>;
 
     ubyte  unknown23a[15];
@@ -413,21 +412,23 @@ typedef struct {
     }
 } ReplayCommandAttribute;
 
+struct UnitIdWithTrailing32 {
+    // These 3 bytes for unitId are in normal order
+    // 63,0,0 == 63
+    ubyte unitId[3];
+    ubyte unitSeparator32;
+};
 
 typedef struct {
     int16       size;
     CommandType commandType;
     CommandFlag commandFlags; // 0x80 probably 'queued' (yeah, looks very much like 'shift' commands)
     // Below is from CoH2
-    byte        unknown1        <comment="Appears to be command index in the block">;
-    byte        unknown2;   // Not player ID. Observed human=0, AI=0. If unique for multiplayer, host machine?
-    short       index;
-    short       category;
-    short       objectId;
+    uint16      playerCommandCount <comment="Each player has their own command counter.">; // Always 0 if playerId is 0.
+    ubyte       unknown1[6];
 
-    uint32 unknown3;
-    uint32 unknown4;
-    uint32 playerId; // This matches DataPLAS.playerId of the player issuing the command.
+    ubyte  unknown2[8];
+    uint32 playerId; // Matches DataPLAS.playerId of the player issuing the command. Is 0 for Non-player events.
 
     //while(size > (FTell() - startof(size)))
     //    ReplayCommandAttribute attr;
@@ -453,17 +454,34 @@ typedef struct {
     }
     else if (commandType == 62)
     {
+        ubyte marker;
+        if (marker == 32) {
+          // One unit selected
+
+          // These 3 bytes for unitId are in reverse order (compared to multiple units selected).
+          // 0,0,63 == 63
+          ubyte unitIdReversed[3];
+        } else if (marker > 64) {
+          // Multiple units selected.
+
+          // TODO: what happens if more than 63 units selected??
+          local int unit_count = marker - 64;
+
+          UnitIdWithTrailing32 unitIds[unit_count];
+        }
         // LocalCommand_SquadMovePos( PlayerID player, SGroupID sgroup, Position target, Boolean queued, Boolean reverseMove, Boolean split, Real acceptableProximity )
         // LocalCommand_SquadPos( PlayerID player, SGroupID sgroup, SquadCommandType squadCommand, Position target, Boolean queued ) RETURNS:  =>Send a position command to a squad group.
         //ReplayCommandAttribute attr; // 32 
         //ReplayCommandAttribute attr; // 1
         //ReplayCommandAttribute attr; // 2 = pos
         //uint16 unknown7;
-        //byte   unknown8;
+        byte   unknown8; // Always 1
+        byte   unknown9; // Always 13 (possibly size of the bytes after this point)
+        byte   unknown10; // Always 2
 
-        //float x;
-        //float y;
-        //float z;
+        float x;
+        float y;
+        float z;
 
         // note that unknown5 can be 32, designating a unit id coming after.  or 66, which is something else and then the 32:id pair comes later
         // So unknown5 is part of the commandSubData
