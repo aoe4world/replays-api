@@ -264,22 +264,6 @@ struct DataSDSC {
 
 local int32 globalGameTick;
 
-enum <ubyte> CommandType {
-    Unknown3        = 3,   // Probably build/queue unit (vil)
-    Unknown12       = 12, // Or this oen build/queue unit (vil)
-    MoveCommand     = 62,
-    CancelCommand   = 63,
-    BuildCommand    = 65,
-    Unknown67       = 67,  // Maybe queue vil?
-    Unknown105      = 105, // Maybe move vil to gather sheep/kill sheep
-    Unknown123      = 123, // Build Command? Lumber camp.
-    Unknown143      = 143, // This appears to be the 'Surrender' command, but could also be a more global command with Surrender as subtype.
-    PreCommand      = 146, // Triggered Before Command
-    PostCommand     = 148, // Triggered After Command 
-    Periodic1       = 152, // Probably Camera
-    Periodic2       = 153, // Maybe Camera. Maybe heartbeat.
-};
-
 struct CommandFlag {
   ubyte flags : 7;
 
@@ -288,9 +272,9 @@ struct CommandFlag {
 };
 
 enum <ubyte> CommandAttributeType {
-    Unknown1    = 1,
+    Size        = 1,
     Position    = 2,
-    BuildingId  = 3, 
+    BuildingId  = 3,
     Unknown4    = 4,
     Unknown5    = 5,
     Unknown32   = 32,   // Probably UnitID
@@ -321,7 +305,7 @@ typedef struct {
             ubyte unknown2;
             break;
         case 1:
-            ubyte unknown1;
+            ubyte size <comment="Size of the rest of the next Attribute(s?).">;
             break;
         case 2:
             float x;
@@ -329,7 +313,7 @@ typedef struct {
             float z;
             break;
         case 3:
-            uint32 buildingId;
+            ubyte buildingId[3];
             break;
         case 4:
             uint32 entityId;
@@ -415,11 +399,228 @@ typedef struct {
     }
 } ReplayCommandAttribute;
 
-struct UnitIdWithTrailing32 {
+enum <ubyte> CommandType {
+    UnknownCommand3     = 3,   // Probably build/queue unit (vil)
+    UnknownCommand5     = 5,   // Rare
+    UnknownCommand7     = 7,   // Rare
+    UnknownCommand12    = 12,  // Or this oen build/queue unit (vil)
+    UnknownCommand14    = 14,  // Rare
+    UnknownCommand16    = 16,  // Rare
+    UnknownCommand20    = 20,  // Rare
+    UnknownCommand22    = 22,  // Rare
+    UnknownCommand56    = 56,  // Rare
+    MoveCommand         = 62,
+    CancelCommand       = 63,
+    BuildCommand        = 65,
+    UnknownCommand66    = 66,
+    UnknownCommand67    = 67,  // Maybe queue vil?
+    UnknownCommand71    = 71,
+    UnknownCommand72    = 72,  // Has PreCommand + PostCommand; Can come in batches like: PreCommand, 72, 72, 72, 72, PostCommand
+    UnknownCommand73    = 73,
+    UnknownCommand105   = 105, // Maybe move vil to gather sheep/kill sheep
+    UnknownCommand108   = 108,
+    UnknownCommand114   = 114, // Has PreCommand + PostCommand
+    UnknownCommand123   = 123, // Build Command? Lumber camp.
+    UnknownCommand130   = 130,
+    UnknownCommand143   = 143, // This appears to be the 'Surrender' command, but could also be a more global command with Surrender as subtype.
+    PreCommand          = 146, // Triggered Before Command
+    PostCommand         = 148, // Triggered After Command 
+    PeriodicCommand1    = 152, // Probably Camera
+    PeriodicCommand2    = 153, // Maybe Camera. Maybe heartbeat.
+    UnknownCommand154   = 154,
+};
+
+struct UnknownCommand3Data {
+    ReplayCommandAttribute attr; // 16
+    byte unknown8;
+    int  pbgid; // What is a pbgid?
+    int  playerId3;
+    byte unknown9;
+};
+
+struct UnknownCommand7Data {
+    ReplayCommandAttribute attr1; // 16
+    ReplayCommandAttribute attr2; // 1 or 2
+    if (exists(attr2.size) && (attr2.size > 0)) {
+      ReplayCommandAttribute attr3; // 2
+    }
+};
+
+struct UnknownCommand12Data {
+    local ubyte peek = ReadByte();
+    ReplayCommandAttribute attr;
+    if (peek == 16 || peek == 66)
+        ReplayCommandAttribute attr; // 4
+};
+
+typedef struct {
     // These 3 bytes for unitId are in normal order
     // 63,0,0 == 63
     ubyte unitId[3];
     ubyte unitSeparator32;
+} UnitIdWithTrailing32 <read=formatUnitId>;
+
+uint32 GetUnitId(UnitIdWithTrailing32 &uid) {
+    return (uid.unitId[0]) + ((uint32)uid.unitId[1] << 8) + ((uint32)uid.unitId[2] << 16);
+}
+
+string formatUnitId(UnitIdWithTrailing32 &uid) {
+    return Str("Unit %u", GetUnitId(uid));
+};
+
+uint32 GetUnitIdReversed(ubyte uid[3]) {
+    return (uid[2]) + ((uint32)uid[1] << 8) + ((uint32)uid[1] << 16);
+}
+
+typedef struct {
+    // This could be a ReplayCommandAttribute
+
+    ubyte marker;
+    local int unit_count;
+    if (marker == 32) {
+      unit_count = 1;
+      // One unit selected
+
+      // These 3 bytes for unitId are in reverse order (compared to multiple units selected).
+      // 0,0,63 == 63
+      ubyte unitIdReversed[3];
+    } else if (marker > 64) {
+      // Multiple units selected.
+      // Have observed this pattern hold for as many as 49 units (marker=113).
+
+      // TODO: what happens if more than 63 units selected??
+      unit_count = marker - 64;
+
+      UnitIdWithTrailing32 unitIds[unit_count];
+    }
+} SelectedSetOfUnits <read=formatSelectedSetOfUnits>;
+
+string formatSelectedSetOfUnits(SelectedSetOfUnits& units) {
+    if (units.unit_count == 1) {
+        return Str("Units: {%u}", GetUnitIdReversed(units.unitIdReversed));
+    }
+    else if (units.unit_count > 1) {
+        local string r = "";
+        local int i;
+        for (i = 0; i < units.unit_count; i++) {
+            if (i != 0) {
+              r = Str("%s, ", r);
+            }
+            r = Str("%s%u", r, GetUnitId(units.unitIds[i]));
+        }
+        return Str("Units: {%s}", r);
+    }
+}
+
+struct MoveCommandData {
+    //ReplayCommandAttribute attr; // 32 
+    SelectedSetOfUnits units;
+
+    //ReplayCommandAttribute attr; // 1 = size (val=13 if next is 2; val=5 if next is 3)
+    byte   unknown8; // Always 1
+    byte   unknown9; // size of the bytes after this point
+
+    //ReplayCommandAttribute attr; // 2 = pos OR 3 = buildingId
+    byte   unknown10; // Always 2 or 3
+
+    if (unknown10 == 2) {
+        float x;
+        float y;
+        float z;
+    } else if (unknown10 == 3) {
+        ubyte unitId[3]; // Maybe
+        ubyte unknown11;
+    } else {
+        // TODO print something, investigate if this happens
+    }
+
+    // note that unknown5 can be 32, designating a unit id coming after.  or 66, which is something else and then the 32:id pair comes later
+    // So unknown5 is part of the commandSubData
+};
+
+struct CancelCommandData {
+    SelectedSetOfUnits units;
+};
+
+struct BuildCommandData {
+    SelectedSetOfUnits units;
+};
+
+struct UnknownCommand71Data {
+    SelectedSetOfUnits units;
+};
+
+struct UnknownCommand72Data {
+    SelectedSetOfUnits units;
+};
+
+struct UnknownCommand73Data {
+    SelectedSetOfUnits units;
+};
+
+struct UnknownCommand114Data {
+    SelectedSetOfUnits units;
+};
+
+struct UnknownCommand123Data {
+    ubyte unknown5[3];
+    uint16 unknown6a;
+    uint16 unknown6b;
+    uint32 pbgid;
+    // Note: x goes from South West to North East.
+    //       y goes from South East to North West.
+    float x1a;
+    float z1a;
+    float y1a;
+    float x1b;
+    float z1b;
+    float y1b;
+    float x1c;
+    float z2c;
+    float y3;
+    // maybe float z; after
+    // 164, -148
+    ubyte unknown8[7];
+    ubyte unitCount;
+    if (unitCount)
+        uint32 unitId[unitCount];
+};
+
+struct PreCommandData {
+    ubyte unknown5[5];
+};
+
+struct PostCommandData {
+    ubyte unknown5;
+    ubyte unknown6;
+    ubyte unknown7;
+    ubyte unknown8;
+};
+
+struct PeriodicCommand1Data {
+    ReplayCommandAttribute attr; // 64
+    //ubyte unknown5[3];
+    // Camera movement, but I can't see any coordinates. It could be camera lens location rather than ground location, or maybe a camera matrix.
+    // camera matrix requires 12 floats for translation and rotation, which would need 48 bytes. But we have 25 bytes tops. So that ain't it.
+    //PosUnion pos;
+};
+
+struct ClientSideTick {
+    // Observed from each client.
+    //  Edit: not always only on cmd152/153
+    uint16 tick   <comment="This appears to be the client-side tick. Lags gameTick by approx (2 or 3 or 4).">;
+};
+
+struct PeriodicCommand2Data {
+    ubyte unknown5[3];
+
+    ClientSideTick clientTick;
+};
+
+struct UnknownCommand154Data {
+    ubyte unknown5[3];
+
+    ClientSideTick clientTick;
 };
 
 typedef struct {
@@ -438,147 +639,83 @@ typedef struct {
     ubyte  unknown2[8];
     uint32 playerId; // Matches DataPLAS.playerId of the player issuing the command. Is 0 for Non-player events.
 
-    //while(size > (FTell() - startof(size)))
-    //    ReplayCommandAttribute attr;
-    
-
-    if (commandType == 3)
-    {
-        ReplayCommandAttribute attr;
-        //ubyte unknown5[3];
-        //uint16 unknown6;
-        //byte unknown7;
-        byte unknown8;
-        int  pbgid;
-        int  playerId3;
-        byte unknown9;
+    switch (commandType) {
+      case UnknownCommand3:
+        UnknownCommand3Data data;
+        break;
+      case UnknownCommand5:
+        break;
+      case UnknownCommand7:
+        UnknownCommand7Data data;
+        break;
+      case UnknownCommand12:
+        UnknownCommand12Data data;
+        break;
+      case UnknownCommand14:
+        break;
+      case UnknownCommand16:
+        break;
+      case UnknownCommand20:
+        break;
+      case UnknownCommand22:
+        break;
+      case UnknownCommand56:
+        break;
+      case MoveCommand:
+        MoveCommandData data;
+        break;
+      case CancelCommand:
+        CancelCommandData data;
+        break;
+      case BuildCommand:
+        BuildCommandData data;
+        break;
+      case UnknownCommand66:
+        break;
+      case UnknownCommand67:
+        break;
+      case UnknownCommand71:
+        UnknownCommand71Data data;
+        break;
+      case UnknownCommand72:
+        break;
+      case UnknownCommand73:
+        UnknownCommand73Data data;
+        break;
+      case UnknownCommand105:
+        break;
+      case UnknownCommand108:
+        break;
+      case UnknownCommand114:
+        UnknownCommand114Data data;
+        break;
+      case UnknownCommand123:
+        UnknownCommand123Data data;
+        break;
+      case UnknownCommand130:
+        break;
+      case UnknownCommand143:
+        break;
+      case PreCommand:
+        PreCommandData data;
+        break;
+      case PostCommand:
+        PostCommandData data;
+        break;
+      case PeriodicCommand1:
+        PeriodicCommand1Data data;
+        break;
+      case PeriodicCommand2:
+        PeriodicCommand2Data data;
+        break;
+      case UnknownCommand154:
+        UnknownCommand154Data data;
+        break;
+      default:
+        Printf("%xh: ReplayCommand new unknown commandType %u\r\n", FTell(), commandType);
+        AddBookmark(startof(size), Str("CommandType %u", commandType), "ReplayCommand");
+        break;
     }
-    else if (commandType == 12)
-    {
-        local ubyte peek = ReadByte();
-        ReplayCommandAttribute attr;
-        if (peek == 16 || peek == 66)
-            ReplayCommandAttribute attr; // 4
-    }
-    else if (commandType == 62)
-    {
-        ubyte marker;
-        if (marker == 32) {
-          // One unit selected
-
-          // These 3 bytes for unitId are in reverse order (compared to multiple units selected).
-          // 0,0,63 == 63
-          ubyte unitIdReversed[3];
-        } else if (marker > 64) {
-          // Multiple units selected.
-
-          // TODO: what happens if more than 63 units selected??
-          local int unit_count = marker - 64;
-
-          UnitIdWithTrailing32 unitIds[unit_count];
-        }
-        // LocalCommand_SquadMovePos( PlayerID player, SGroupID sgroup, Position target, Boolean queued, Boolean reverseMove, Boolean split, Real acceptableProximity )
-        // LocalCommand_SquadPos( PlayerID player, SGroupID sgroup, SquadCommandType squadCommand, Position target, Boolean queued ) RETURNS:  =>Send a position command to a squad group.
-        //ReplayCommandAttribute attr; // 32 
-        //ReplayCommandAttribute attr; // 1
-        //ReplayCommandAttribute attr; // 2 = pos
-        //uint16 unknown7;
-        byte   unknown8; // Always 1
-        byte   unknown9; // Always 13 (possibly size of the bytes after this point)
-        byte   unknown10; // Always 2
-
-        float x;
-        float y;
-        float z;
-
-        // note that unknown5 can be 32, designating a unit id coming after.  or 66, which is something else and then the 32:id pair comes later
-        // So unknown5 is part of the commandSubData
-    }
-    else if  (commandType == 123)
-    {
-        ubyte unknown5[3];
-        uint16 unknown6a;
-        uint16 unknown6b;
-        uint32 pbgid;
-        // Note: x goes from South West to North East.
-        //       y goes from South East to North West. 
-        float x1a;
-        float z1a;
-        float y1a;
-        float x1b;
-        float z1b;
-        float y1b;
-        float x1c;
-        float z2c;
-        float y3;
-        // maybe float z; after
-        // 164, -148
-        ubyte unknown8[7];
-        ubyte unitCount;
-        if (unitCount)
-            uint32 unitId[unitCount];
-    }
-    else if (commandType == 146)
-    {
-        ubyte unknown5[5];
-    }
-    else if (commandType == 148)
-    {
-        //ReplayCommandAttribute attr; // 0
-        //ReplayCommandAttribute attr; // 1
-
-        ubyte unknown5;
-        ubyte unknown6;
-        ubyte unknown7;
-        ubyte unknown8;
-    }
-    else if (commandType == 152)
-    {
-        ReplayCommandAttribute attr; // 64
-        //ubyte unknown5[3];
-        //uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
-       // Camera movement, but I can't see any coordinates. It could be camera lens location rather than ground location, or maybe a camera matrix.
-       // camera matrix requires 12 floats for translation and rotation, which would need 48 bytes. But we have 25 bytes tops. So that ain't it.
-        //PosUnion pos;
-    }
-    else if (commandType == 153)
-    {
-        ubyte unknown5[3];
-
-        // Observed from each client. Value typically: currentFrameNumber - (around 2 or 4).
-        // Command 153 with different number seems to be in a different ReplayBlock (observed ReplayRecord where a host sends 2 blocks with gameTick, gameTick+1).
-        uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
-    }
-    else if (commandType == 154)
-    {
-        ubyte unknown5[3];
-
-        // Observed from each client. Value typically: currentFrameNumber - (around 2 or 4).
-        uint16 unknown6     <comment="This appears to be the client-side tick, about gameTick - 2. Edit: not always only on cmd152/153">;
-    }
-    /*if (ReadByte() == -1)
-    {
-        byte   unknown6;
-    }
-    else
-    {
-        while(size > (FTell() - startof(size)))
-            ReplayCommandAttribute attr;
-    }*/
-    /*if (commandType == 62)
-    { // Move Command
-        ubyte unknown7[30 + startof(size) - FTell()];
-        ubyte unknown8          <comment="Is 2, could be an attribute id/type">;
-        float x;
-        float y;
-        float z;
-    }
-    else if (commandType == 63)
-    { // Cancel Command
-
-    }*/
-
-    // Optional Location is in here somewhere
 
     if (size > (FTell() - startof(size)))
         ubyte remainingCmdData[size + startof(size) - FTell()] <fgcolor=0x00ffff>;
@@ -586,18 +723,7 @@ typedef struct {
     if (commandType == 152)
     {
         //printCamera(this);
-
     }
-    //uint16 size2        <comment="Size of Subblock, maybe size of bitstream that starts at this field?">;
-    //uint16 unknown3     <comment="For each player this field is two different values, it's unknown what it means">;
-
-    //uint32 unknown4;
-    //ubyte  unknown5[5];
-    //uint32 unknown6;
-    //ubyte  unknown7[3];
-    //uint32 playerId     <fgcolor=0x004fff>;
-    //uint32 unknown8;
-    //ubyte  unknown10[size - 7 * 4];
 
 } ReplayCommand <read=formatReplayCommand>;
 
@@ -754,6 +880,12 @@ string formatReplayChatMessage(ReplayChatMessage &block) {
         return "";
 };
 
+void RemoveAllBookMarks() {
+    while (GetNumBookmarks() > 0) {
+      RemoveBookmark(0);
+    }
+}
+
 typedef struct {
     RecordType type;
     if (type == 0)
@@ -761,8 +893,11 @@ typedef struct {
     else if (type == 1)
         ReplayChatMessage chatMessage;
     else {
-        Printf("Unknown Record Type %u", type);
-        Exit(0);    
+        RemoveAllBookMarks(); // None of the others matter if this is wrong.
+        AddBookmark(FTell(), "Unknown ReplayRecord type", "ubyte");
+        Printf("%xh: Unknown Record Type %u\n", FTell(), type);
+        Printf("This probably means the previous record consumed more bytes than it should have, and we're past the start of the next.\n");
+        Exit(1);
     }
 } ReplayRecord <read=formatReplayRecord>;
 
