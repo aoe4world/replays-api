@@ -58,6 +58,28 @@ string formatUString(UString &val) {
     }
 };
 
+string formatPlayerColor(ubyte color_id)
+{
+    // Order based on selection drop down, seems to match observed data.
+    // 0=Blue, 1=Red, 2=Yellow, 3=Green, 4=Teal, 5=Purple, 6=Orange, 7=Pink
+    string color_name;
+    switch(color_id)
+    {
+        case 0  : color_name="Blue"; break;
+        case 1  : color_name="Red"; break;
+        case 2  : color_name="Yellow"; break;
+        case 3  : color_name="Green"; break;
+        case 4  : color_name="Teal"; break;
+        case 5  : color_name="Purple"; break;
+        case 6  : color_name="Orange"; break;
+        case 7  : color_name="Pink"; break;
+        default : color_name="Unknown";
+    }
+    string s;
+    SPrintf(s, "%d - %s", color_id, color_name);
+    return s;
+}
+
 //------------------------------------------------
 
 void ExpectVersion(string name, int read_version, int supported_version) {
@@ -100,24 +122,28 @@ struct DataGameSetupPlayer {
     ubyte  isHuman; // 1=human, 0=AI
     UString playerName;
     uint32 team; // Team
-    uint32 unknown6; // e.g. 1,7,0,3,5     Seems to be unique?
+    uint32 playerId; // e.g. 1,7,0,3,5 Unique. this+1000 = DataPLAS.playerId
     ubyte  unknown7;
     String  civ;
 
-    ushort unknown8;
-    ushort unknown9;
-    uint32 unknown10Count;
+    ushort unknown8; // Always 0
+    ushort unknown9; // Always 34
+    uint32 unknown10Count; // 127=human, 1=AI ?
     String unknown11;
     float  unknown12;
 
     uint32 unknown13;
     uint32 unknown14[5]; // Always 0xFFFFFFFF ?
     uint32 unknown15; // e.g. 0,1,2,3,4    Always player index?
-    uint32 unknown16; // e.g. 1,3,6,2,4    Always different for each player?
+
+    // Different for each human. Local 1 human vs 1 AI, both players have same value.
+    // Starts at 1, not 0.
+    // Matches ReplayBlock.hostComputerId
+    uint32 hostComputerId; // e.g. 1,3,6,2,4
     uint32 unknown17;
 
     uint32 unknown18; // 'kin'
-    ubyte  unknown19[5];
+    ubyte  unknown19[5]; // Seen: 0=human, 255=AI
 
     UString steamId;
 
@@ -126,7 +152,13 @@ struct DataGameSetupPlayer {
     ushort unknown22a;
     ushort unknown22b;
 
-    ubyte  unknown23a[18];
+    ubyte  unknown23a1;
+    ubyte  unknown23a2;
+
+    // Seems to be color? This may be wrong.
+    ubyte  color <read=formatPlayerColor>;
+
+    ubyte  unknown23a[15];
     ubyte  unknown23b;
     ubyte  unknown23c[3];
 
@@ -388,14 +420,14 @@ typedef struct {
     CommandFlag commandFlags; // 0x80 probably 'queued' (yeah, looks very much like 'shift' commands)
     // Below is from CoH2
     byte        unknown1        <comment="Appears to be command index in the block">;
-    byte        playerId;
+    byte        unknown2;   // Not player ID. Observed human=0, AI=0. If unique for multiplayer, host machine?
     short       index;
     short       category;
     short       objectId;
 
-    uint32 unknown2;
     uint32 unknown3;
-    uint32 playerId2;
+    uint32 unknown4;
+    uint32 playerId; // This matches DataPLAS.playerId of the player issuing the command.
 
     //while(size > (FTell() - startof(size)))
     //    ReplayCommandAttribute attr;
@@ -551,7 +583,10 @@ void printCamera(ReplayCommand &command) {
 };
 
 typedef struct {
-    uint32 playerIndex;
+    // Human and AI have the same value on a local game. Each player has their own on multiplayer.
+    // TODO: check this with multiple humans and multiple AIs in the same game.
+    // Matches DataGameSetupPlayer.hostComputerId
+    uint32 hostComputerId   <comment="Host computer this command originated from. One per human player.">; // Comment is a guess
     uint32 unknown1;
     uint32 size         <comment="Size of Block">;
 
@@ -707,13 +742,13 @@ string GetChunkyNodeValue(ChunkyNode &node) {
 };
 
 typedef struct {
-	char   type[4]  <hidden=true>;
-	char   id[4]    <hidden=true>;
+	char   type[4];
+	char   id[4];
 	uint32 version;
 
     ExpectVersion("ChunkyNodePost", version, 1);
 
-	uint32 length   <hidden=true>;
+	uint32 length;
 	String name;
     local uint32 posStart = FTell();
 
@@ -738,10 +773,10 @@ typedef struct {
 
 
 typedef struct {
-	char   type[4]  <hidden=true>;
-	char   id[4]    <hidden=true>;
+	char   type[4];
+	char   id[4];
 	uint32 version;
-	uint32 length   <hidden=true>;
+	uint32 length;
 	String name;
     local uint32 posStart = FTell();
 
