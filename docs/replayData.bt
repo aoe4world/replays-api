@@ -563,7 +563,27 @@ typedef struct {
     //uint32 unknown8;
     //ubyte  unknown10[size - 7 * 4];
 
-} ReplayCommand;
+} ReplayCommand <read=formatReplayCommand>;
+
+string GetPlayerNameForPlayerId(int id) {
+    local int32 i, j;
+    local string id_str;
+    for (i = 0; i < file.rootNode.nodeCount; i++) {
+      id_str = Str("%c%c%c%c", file.rootNode.node[i].id[0], file.rootNode.node[i].id[1], file.rootNode.node[i].id[2], file.rootNode.node[i].id[3]);
+      if (id_str == "DATA") {
+        for (j = 0; j < file.rootNode.node[i].dataGameSetup.playerCount; j++) {
+          if (file.rootNode.node[i].dataGameSetup.players[j].playerId == id || file.rootNode.node[i].dataGameSetup.players[j].playerId + 1000 == id) {
+            return formatUString(file.rootNode.node[i].dataGameSetup.players[j].playerName);
+          }
+        }
+      }
+    }
+    return "UnknownPlayer";
+}
+
+string formatReplayCommand(ReplayCommand &command) {
+    return Str("PlayerId %u %s", command.playerId, GetPlayerNameForPlayerId(command.playerId));
+};
 
 void printCamera(ReplayCommand &command) {
     local string msg = "";
@@ -607,7 +627,7 @@ typedef struct {
 } ReplayBlock <read=formatReplayBlock>;
 
 string formatReplayBlock(ReplayBlock &block) {
-    return Str("PlayerIndex %u", block.playerIndex);
+    return Str("HostComputer %u", block.hostComputerId);
 };
 
 void printReplayBlock(ReplayBlock &block) {
@@ -779,11 +799,13 @@ typedef struct {
 	uint32 length;
 	String name;
     local uint32 posStart = FTell();
+    local uint32 nodeCount = 0;
 
 	if (type == "FOLD") {
         ExpectVersion("ChunkyNode FOLD:", version, 5);
         while ((FTell()-posStart)<length) {
             ChunkyNode node;
+            nodeCount += 1;
         }
     } else if (type == "DATA") {
         switch (id) {
