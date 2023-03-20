@@ -417,9 +417,12 @@ enum <ubyte> CommandType {
     UnknownCommand71    = 71,
     UnknownCommand72    = 72,  // Has PreCommand + PostCommand; Can come in batches like: PreCommand, 72, 72, 72, 72, PostCommand
     UnknownCommand73    = 73,
+    UnknownCommand76    = 76,  // Rare
+    UnknownCommand96    = 96,  // Rare
     UnknownCommand105   = 105, // Maybe move vil to gather sheep/kill sheep
     UnknownCommand108   = 108,
     UnknownCommand114   = 114, // Has PreCommand + PostCommand
+    UnknownCommand116   = 116,
     UnknownCommand123   = 123, // Build Command? Lumber camp.
     UnknownCommand130   = 130,
     UnknownCommand143   = 143, // This appears to be the 'Surrender' command, but could also be a more global command with Surrender as subtype.
@@ -473,23 +476,27 @@ uint32 GetUnitIdReversed(ubyte uid[3]) {
 }
 
 typedef struct {
-    // This could be a ReplayCommandAttribute
+    // Each case here could be a ReplayCommandAttribute.
 
     ubyte marker;
     local int unit_count;
     if (marker == 32) {
+      // 1 unit selected
       unit_count = 1;
-      // One unit selected
 
       // These 3 bytes for unitId are in reverse order (compared to multiple units selected).
       // 0,0,63 == 63
       ubyte unitIdReversed[3];
-    } else if (marker > 64) {
-      // Multiple units selected.
+    } else if (marker > 64 && marker < 128) {
+      // 2 to 63 units selected.
       // Have observed this pattern hold for as many as 49 units (marker=113).
 
-      // TODO: what happens if more than 63 units selected??
       unit_count = marker - 64;
+
+      UnitIdWithTrailing32 unitIds[unit_count];
+    } else if (marker == 128) {
+      ubyte unitCount;
+      unit_count = unitCount;
 
       UnitIdWithTrailing32 unitIds[unit_count];
     }
@@ -682,12 +689,18 @@ typedef struct {
       case UnknownCommand73:
         UnknownCommand73Data data;
         break;
+      case UnknownCommand76:
+        break;
+      case UnknownCommand96:
+        break;
       case UnknownCommand105:
         break;
       case UnknownCommand108:
         break;
       case UnknownCommand114:
         UnknownCommand114Data data;
+        break;
+      case UnknownCommand116:
         break;
       case UnknownCommand123:
         UnknownCommand123Data data;
