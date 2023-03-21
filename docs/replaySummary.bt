@@ -265,9 +265,10 @@ struct DataSTPD(int32 version) {
     int32 unknown5u;
     int32 unknown5v;
     int32 unknown6;
-	int32 unknown7;                 // 'bprod'
-	ResourceDict unknownItems1;
-	int32 buildingsLost;            // 'blost'
+    int32 unknown7;                 // 'bprod'
+    int32 unknown8;
+    ResourceDict unknownItems1;
+    int32 buildingsLost;            // 'blost'
     int32 unknown9a;
     int32 unitsLost;                // 'edeaths'/'sqlost'
     int32 unitsLostResources        <comment="Resource value of lost units. (This includes free units such as the 120 res Khan)">;
