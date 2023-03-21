@@ -296,6 +296,71 @@ union PosUnion {
 };
 
 typedef struct {
+    // These 3 bytes for unitId are in normal order
+    // 63,0,0 == 63
+    ubyte unitId[3];
+    ubyte unitSeparator32;
+} UnitIdWithTrailing32 <read=formatUnitId>;
+
+uint32 GetUnitId(UnitIdWithTrailing32 &uid) {
+    return (uid.unitId[0]) + ((uint32)uid.unitId[1] << 8) + ((uint32)uid.unitId[2] << 16);
+}
+
+string formatUnitId(UnitIdWithTrailing32 &uid) {
+    return Str("Unit %u", GetUnitId(uid));
+};
+
+uint32 GetUnitIdReversed(ubyte uid[3]) {
+    return (uid[2]) + ((uint32)uid[1] << 8) + ((uint32)uid[1] << 16);
+}
+
+typedef struct {
+    // Each case here could be a ReplayCommandAttribute.
+    ubyte marker;
+
+    local int unit_count;
+    if (marker == 32) {
+      // 1 unit selected
+      unit_count = 1;
+
+      // These 3 bytes for unitId are in reverse order (compared to multiple units selected).
+      // 0,0,63 == 63
+      ubyte unitIdReversed[3];
+    } else if (marker > 64 && marker < 128) {
+      // 2 to 63 units selected.
+      // Have observed this pattern hold for as many as 49 units (marker=113).
+
+      unit_count = marker - 64;
+
+      UnitIdWithTrailing32 unitIds[unit_count];
+    } else if (marker == 128) {
+      ubyte unitCount;
+      unit_count = unitCount;
+
+      UnitIdWithTrailing32 unitIds[unit_count];
+    } else {
+      Printf("%xh: Expect attribute SelectedSetOfUnits read %u\r\n", startof(marker), marker);
+    }
+} SelectedSetOfUnits <read=formatSelectedSetOfUnits>;
+
+string formatSelectedSetOfUnits(SelectedSetOfUnits& units) {
+    if (units.unit_count == 1) {
+        return Str("Units: {%u}", GetUnitIdReversed(units.unitIdReversed));
+    }
+    else if (units.unit_count > 1) {
+        local string r = "";
+        local int i;
+        for (i = 0; i < units.unit_count; i++) {
+            if (i != 0) {
+              r = Str("%s, ", r);
+            }
+            r = Str("%s%u", r, GetUnitId(units.unitIds[i]));
+        }
+        return Str("Units: {%s}", r);
+    }
+}
+
+typedef struct {
     CommandAttributeType attributeType;
 
     switch (attributeType)
@@ -314,6 +379,7 @@ typedef struct {
             break;
         case 3:
             ubyte buildingId[3];
+            ubyte unknown1;
             break;
         case 4:
             uint32 entityId;
@@ -336,65 +402,14 @@ typedef struct {
             //    float z;
             //}
             break;
-        case 32:
-            ubyte unknown1;
-            ubyte unknown2;
-            ubyte unknown3;
-            break;
-        case 64:
-            uint16 unknown1;
-            uint16 unknown2     <comment="This appears to be the client-side tick, about gameTick - 2">;
-            // Camera movement, but I can't see any coordinates. It could be camera lens location rather than ground location, or maybe a camera matrix.
-            // camera matrix requires 12 floats for translation and rotation, which would need 48 bytes. But we have 25 bytes tops. So that ain't it.
-            PosUnion pos;
-            break;
-        case 66:
-            ubyte unknown1[10]; // To be disected later
-            break;
-        case 67:
-            ubyte unknown1[19]; // To be disected later
-            break;
-        case 68:
-            ubyte unknown1[23]; // To be disected later
-            break;
-        case 69:
-            // To be disected later
-            break;
-        case 70:
-            ubyte unknown1;
-            ubyte unknown2;
-            ubyte unknown3;
-            break;
-        case 71:
-            // To be disected later
-            // Seen 35 bytes in age4 6.0.878.0
-            break;
-        case 72:
-             // To be disected later
-            break;
-        case 73:
-            // To be disected later
-            // Seen 43 bytes in age4 6.0.878.0
-            break;
-        case 74:
-            // To be disected later
-            break;
-        case 75:
-            // To be disected later
-            break;
-        case 76:
-            // To be disected later
-            break;
-        case 77:
-            // To be disected later
-            break;
-        case 79:
-            // To be disected later
-            break;
-        case 95:
-            break;
         default:
-            ubyte unknown[123023];
+            if ((attributeType == 32) || (attributeType > 64 && attributeType < 128) || (attributeType == 128)) {
+                FSkip(-1);
+                SelectedSetOfUnits units;
+            } else {
+                Printf("%xh: Unknown Attribute %u\r\n", startof(attributeType), attributeType);
+                //ubyte unknown[123023];
+            }
             break;
     }
 } ReplayCommandAttribute;
@@ -425,7 +440,9 @@ enum <ubyte> CommandType {
     UnknownCommand116   = 116,
     UnknownCommand123   = 123, // Build Command? Lumber camp.
     UnknownCommand130   = 130,
+    UnknownCommand139   = 139, // Rare (skirmish human vs AI)
     UnknownCommand143   = 143, // This appears to be the 'Surrender' command, but could also be a more global command with Surrender as subtype.
+    UnknownCommand145   = 145, // Rare (skirmish human vs AI)
     PreCommand          = 146, // Triggered Before Command
     PostCommand         = 148, // Triggered After Command 
     PeriodicCommand1    = 152, // Probably Camera
@@ -451,73 +468,13 @@ struct UnknownCommand7Data {
 
 struct UnknownCommand12Data {
     local ubyte peek = ReadByte();
-    ReplayCommandAttribute attr;
-    if (peek == 16 || peek == 66)
+    ReplayCommandAttribute attr; // 16 or SelectedSetOfUnits or ?
+    if (peek == 16 || ((peek == 32) || (peek > 64 && peek < 128) || (peek == 128))) {
         ReplayCommandAttribute attr; // 4
+    } else {
+        Printf("%xh: UnknownComand12 Unexpected Attribute %u\r\n", startof(attr), peek);
+    }
 };
-
-typedef struct {
-    // These 3 bytes for unitId are in normal order
-    // 63,0,0 == 63
-    ubyte unitId[3];
-    ubyte unitSeparator32;
-} UnitIdWithTrailing32 <read=formatUnitId>;
-
-uint32 GetUnitId(UnitIdWithTrailing32 &uid) {
-    return (uid.unitId[0]) + ((uint32)uid.unitId[1] << 8) + ((uint32)uid.unitId[2] << 16);
-}
-
-string formatUnitId(UnitIdWithTrailing32 &uid) {
-    return Str("Unit %u", GetUnitId(uid));
-};
-
-uint32 GetUnitIdReversed(ubyte uid[3]) {
-    return (uid[2]) + ((uint32)uid[1] << 8) + ((uint32)uid[1] << 16);
-}
-
-typedef struct {
-    // Each case here could be a ReplayCommandAttribute.
-
-    ubyte marker;
-    local int unit_count;
-    if (marker == 32) {
-      // 1 unit selected
-      unit_count = 1;
-
-      // These 3 bytes for unitId are in reverse order (compared to multiple units selected).
-      // 0,0,63 == 63
-      ubyte unitIdReversed[3];
-    } else if (marker > 64 && marker < 128) {
-      // 2 to 63 units selected.
-      // Have observed this pattern hold for as many as 49 units (marker=113).
-
-      unit_count = marker - 64;
-
-      UnitIdWithTrailing32 unitIds[unit_count];
-    } else if (marker == 128) {
-      ubyte unitCount;
-      unit_count = unitCount;
-
-      UnitIdWithTrailing32 unitIds[unit_count];
-    }
-} SelectedSetOfUnits <read=formatSelectedSetOfUnits>;
-
-string formatSelectedSetOfUnits(SelectedSetOfUnits& units) {
-    if (units.unit_count == 1) {
-        return Str("Units: {%u}", GetUnitIdReversed(units.unitIdReversed));
-    }
-    else if (units.unit_count > 1) {
-        local string r = "";
-        local int i;
-        for (i = 0; i < units.unit_count; i++) {
-            if (i != 0) {
-              r = Str("%s, ", r);
-            }
-            r = Str("%s%u", r, GetUnitId(units.unitIds[i]));
-        }
-        return Str("Units: {%s}", r);
-    }
-}
 
 struct MoveCommandData {
     //ReplayCommandAttribute attr; // 32 
@@ -550,6 +507,10 @@ struct CancelCommandData {
 };
 
 struct BuildCommandData {
+    SelectedSetOfUnits units;
+};
+
+struct UnknownCommand67Data {
     SelectedSetOfUnits units;
 };
 
@@ -680,6 +641,7 @@ typedef struct {
       case UnknownCommand66:
         break;
       case UnknownCommand67:
+        UnknownCommand67Data data;
         break;
       case UnknownCommand71:
         UnknownCommand71Data data;
@@ -707,7 +669,11 @@ typedef struct {
         break;
       case UnknownCommand130:
         break;
+      case UnknownCommand139:
+        break;
       case UnknownCommand143:
+        break;
+      case UnknownCommand145:
         break;
       case PreCommand:
         PreCommandData data;
