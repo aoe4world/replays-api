@@ -441,7 +441,7 @@ enum <ubyte> CommandType {
 struct QueueUnitCommandData {
     ReplayCommandAttribute attr; // 16 Building?
     byte unknown8; // Count being queued?
-    ubyte unitType[4]; // Unit type being queued? Seems to be civ specific, even for stuff like vils.
+    int32  pbgid; // Unit type being queued. Reference Summary file to find out what the unit is.
     uint32 playerId;
     byte unknown9; // Always 0 ?
 };

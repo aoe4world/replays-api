@@ -489,7 +489,7 @@ typedef struct(int32 version) {
 } DataSTLP <read=formatDataSTLP>;
 
 string formatDataSTLP(DataSTLP &data) {
-    return Str("%ux %s", data.unknown4, formatString(data.commandType));
+    return Str("%ux %s", data.unknown1, formatString(data.commandType));
 };
 
 //------------------------------------------------
