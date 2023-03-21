@@ -386,21 +386,9 @@ typedef struct {
             //ubyte  unknown5;
             break;
         case 16:
-            uint16 unknown1; // 0
-            uint16 unknown6;    // 2816
-            byte unknown7;  // 13 = pos?
+            ubyte unknown1[4]; // Building ID?
+            byte unknown2;   // 10
             //byte unknown8;
-    
-            //if (unknown7 == 5)
-            //{
-            //    int  entityId   <comment="This is an entityId like 50007, but purpose unknown">;
-            //}
-            //else if (unknown7 == 13)
-            //{
-            //    float x;
-            //    float y;
-            //    float z;
-            //}
             break;
         default:
             if ((attributeType == 32) || (attributeType > 64 && attributeType < 128) || (attributeType == 128)) {
@@ -415,7 +403,7 @@ typedef struct {
 } ReplayCommandAttribute;
 
 enum <ubyte> CommandType {
-    UnknownCommand3     = 3,   // Probably build/queue unit (vil)
+    QueueUnitCommand    = 3,
     UnknownCommand5     = 5,   // Rare
     UnknownCommand7     = 7,   // Rare
     UnknownCommand12    = 12,  // Or this oen build/queue unit (vil)
@@ -450,12 +438,12 @@ enum <ubyte> CommandType {
     UnknownCommand154   = 154,
 };
 
-struct UnknownCommand3Data {
-    ReplayCommandAttribute attr; // 16
-    byte unknown8;
-    int  pbgid; // What is a pbgid?
-    int  playerId3;
-    byte unknown9;
+struct QueueUnitCommandData {
+    ReplayCommandAttribute attr; // 16 Building?
+    byte unknown8; // Count being queued?
+    ubyte unitType[4]; // Unit type being queued? Seems to be civ specific, even for stuff like vils.
+    uint32 playerId;
+    byte unknown9; // Always 0 ?
 };
 
 struct UnknownCommand7Data {
@@ -608,8 +596,8 @@ typedef struct {
     uint32 playerId; // Matches DataPLAS.playerId of the player issuing the command. Is 0 for Non-player events.
 
     switch (commandType) {
-      case UnknownCommand3:
-        UnknownCommand3Data data;
+      case QueueUnitCommand:
+        QueueUnitCommandData data;
         break;
       case UnknownCommand5:
         break;
