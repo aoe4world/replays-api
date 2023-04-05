@@ -370,6 +370,8 @@ typedef struct {
             ubyte unknown2;
             break;
         case 1:
+        case 30: // Not sure what the difference is here.
+        case 15:
             ubyte size <comment="Size of the rest of the next Attribute(s?).">;
             break;
         case 2:
@@ -406,9 +408,9 @@ enum <ubyte> CommandType {
     QueueUnitCommand    = 3,
     UnknownCommand5     = 5,   // Rare
     UnknownCommand7     = 7,   // Rare
-    UnknownCommand12    = 12,  // Or this oen build/queue unit (vil)
-    UnknownCommand14    = 14,  // Rare
-    UnknownCommand16    = 16,  // Rare
+    RallyPointCommand   = 12,
+    UnknownCommand14    = 14,  // Return to work?
+    UnknownCommand16    = 16,  // Research tech
     UnknownCommand20    = 20,  // Rare
     UnknownCommand22    = 22,  // Rare
     UnknownCommand56    = 56,  // Rare
@@ -417,15 +419,17 @@ enum <ubyte> CommandType {
     BuildCommand        = 65,
     UnknownCommand66    = 66,
     UnknownCommand67    = 67,  // Maybe queue vil?
-    UnknownCommand71    = 71,
-    UnknownCommand72    = 72,  // Has PreCommand + PostCommand; Can come in batches like: PreCommand, 72, 72, 72, 72, PostCommand
-    UnknownCommand73    = 73,
+    AttackMoveCommand   = 71,
+    // Used for many things: Mongol unpack, Mongol khan speed signal arrow, khan scouting falcon, delete unit
+    UnitAbilityCommand  = 72,  // Has PreCommand + PostCommand; Can come in batches like: PreCommand, 72, 72, 72, 72, PostCommand
+    SeekShelterCommand  = 73,
     UnknownCommand76    = 76,  // Rare
     UnknownCommand96    = 96,  // Rare
     UnknownCommand105   = 105, // Maybe move vil to gather sheep/kill sheep
     UnknownCommand108   = 108,
+    UnitStanceCommand   = 109,
     UnknownCommand114   = 114, // Has PreCommand + PostCommand
-    UnknownCommand116   = 116,
+    PatrolCommand       = 116, // Patrol
     UnknownCommand123   = 123, // Build Command? Lumber camp.
     UnknownCommand130   = 130,
     UnknownCommand139   = 139, // Rare (skirmish human vs AI)
@@ -454,7 +458,7 @@ struct UnknownCommand7Data {
     }
 };
 
-struct UnknownCommand12Data {
+struct RallyPointCommandData {
     local ubyte peek = ReadByte();
     ReplayCommandAttribute attr; // 16 or SelectedSetOfUnits or ?
     if (peek == 16 || ((peek == 32) || (peek > 64 && peek < 128) || (peek == 128))) {
@@ -465,29 +469,12 @@ struct UnknownCommand12Data {
 };
 
 struct MoveCommandData {
-    //ReplayCommandAttribute attr; // 32 
     SelectedSetOfUnits units;
 
-    //ReplayCommandAttribute attr; // 1 = size (val=13 if next is 2; val=5 if next is 3)
-    byte   unknown8; // Always 1
-    byte   unknown9; // size of the bytes after this point
-
-    //ReplayCommandAttribute attr; // 2 = pos OR 3 = buildingId
-    byte   unknown10; // Always 2 or 3
-
-    if (unknown10 == 2) {
-        float x;
-        float y;
-        float z;
-    } else if (unknown10 == 3) {
-        ubyte unitId[3]; // Maybe
-        ubyte unknown11;
-    } else {
-        // TODO print something, investigate if this happens
+    ReplayCommandAttribute attr1; // 1 = size (val=13 if next is 2; val=5 if next is 3). Occasionally 6.
+    if (exists(attr1.size) && (attr1.size > 0)) {
+      ReplayCommandAttribute attr2; // 2 = pos OR 3 = buildingId
     }
-
-    // note that unknown5 can be 32, designating a unit id coming after.  or 66, which is something else and then the 32:id pair comes later
-    // So unknown5 is part of the commandSubData
 };
 
 struct CancelCommandData {
@@ -502,20 +489,58 @@ struct UnknownCommand67Data {
     SelectedSetOfUnits units;
 };
 
-struct UnknownCommand71Data {
+struct AttackMoveCommandData {
+    SelectedSetOfUnits units;
+
+    ReplayCommandAttribute attr1; // 1 = size (val=13 if next is 2; val=5 if next is 3)
+    if (exists(attr1.size) && (attr1.size > 0)) {
+      ReplayCommandAttribute attr2; // 2 = pos OR 3 = buildingId
+    }
+};
+
+struct UnitAbilityCommandData {
+    SelectedSetOfUnits units;
+
+    local ubyte peek = ReadByte();
+    if (peek == 42) {
+        // next byte is probably a size
+
+        // Mongol unpack building
+    } else if (peek == 36) {
+        // next byte is probably a size
+
+        // Mongol kahn speed arrow
+        // Dec Bytes: 36,6,1,119,146,2,0,0
+
+        // Mongol kahn scouting falcon
+        // Dec Bytes: 36,6,1,21,183,2,0,0
+    } else if (peek == 37) {
+        // next byte is probably a size
+
+        // Garrison vils in TC
+    }
+    // Also used for delete unit
+};
+
+struct SeekShelterCommandData {
     SelectedSetOfUnits units;
 };
 
-struct UnknownCommand72Data {
-    SelectedSetOfUnits units;
-};
-
-struct UnknownCommand73Data {
+struct UnitStanceCommandData {
     SelectedSetOfUnits units;
 };
 
 struct UnknownCommand114Data {
     SelectedSetOfUnits units;
+};
+
+struct PatrolCommandData {
+    SelectedSetOfUnits units;
+
+    ReplayCommandAttribute attr1; // 1 = size (val=13 if next is 2; val=5 if next is 3)
+    if (exists(attr1.size) && (attr1.size > 0)) {
+      ReplayCommandAttribute attr2; // 2 = pos OR 3 = buildingId
+    }
 };
 
 struct UnknownCommand123Data {
@@ -604,8 +629,8 @@ typedef struct {
       case UnknownCommand7:
         UnknownCommand7Data data;
         break;
-      case UnknownCommand12:
-        UnknownCommand12Data data;
+      case RallyPointCommand:
+        RallyPointCommandData data;
         break;
       case UnknownCommand14:
         break;
@@ -631,13 +656,14 @@ typedef struct {
       case UnknownCommand67:
         UnknownCommand67Data data;
         break;
-      case UnknownCommand71:
-        UnknownCommand71Data data;
+      case AttackMoveCommand:
+        AttackMoveCommandData data;
         break;
-      case UnknownCommand72:
+      case UnitAbilityCommand:
+        UnitAbilityCommandData data;
         break;
-      case UnknownCommand73:
-        UnknownCommand73Data data;
+      case SeekShelterCommand:
+        SeekShelterCommandData data;
         break;
       case UnknownCommand76:
         break;
@@ -647,10 +673,14 @@ typedef struct {
         break;
       case UnknownCommand108:
         break;
+      case UnitStanceCommand:
+        UnitStanceCommandData data;
+        break;
       case UnknownCommand114:
         UnknownCommand114Data data;
         break;
-      case UnknownCommand116:
+      case PatrolCommand:
+        PatrolCommandData data;
         break;
       case UnknownCommand123:
         UnknownCommand123Data data;
@@ -804,11 +834,21 @@ string formatReplayGameTick(ReplayGameTick &block) {
     {
         string cmds = "";
         local int32 i, j;
-        for (i = 0; i < block.blockCount; i++)
-        for  (j = 0; j < block.blocks[i].commandCount; j++) {
+        for (i = 0; i < block.blockCount; i++) {
+          // Print the first player seen in the block.
+          // A local human vs AI game may have human and AI commands in the same block.
+          // Then this will only show the first player name in the block.
+          for  (j = 0; j < block.blocks[i].commandCount; j++) {
+            if (block.blocks[i].commands[j].playerId >=1000) {
+              cmds += GetPlayerNameForPlayerId(block.blocks[i].commands[j].playerId);
+              break;
+            }
+          }
+          for  (j = 0; j < block.blocks[i].commandCount; j++) {
             if (cmds != "") cmds += ",";
             cmds += Str("%u", block.blocks[i].commands[j].commandType);
-        }   
+          }
+        }
         msg += Str(" - (%u blocks - %s)", block.blockCount, cmds);
     }
     return msg;
