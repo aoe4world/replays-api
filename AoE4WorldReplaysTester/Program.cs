@@ -1,5 +1,6 @@
 ﻿
 using System.Diagnostics;
+using System.IO.Compression;
 using AoE4WorldReplaysParser;
 
 if (args.Length == 0)
@@ -20,28 +21,67 @@ if (!Directory.Exists(replayDir))
 }
 
 var reportsDir = Path.Combine(replayDir, "reports");
+var parser = new ReplaySummaryParser();
+
+if (!Directory.Exists(reportsDir))
+{
+    Directory.CreateDirectory(reportsDir);
+}
 
 var stopwatch = new Stopwatch();
 stopwatch.Start();
-var parser = new ReplaySummaryParser();
 foreach (var file in Directory.GetFiles(replayDir))
 {
-    if (file.EndsWith(".gz"))
+    if (file.EndsWith(".md"))
         continue;
 
-    if (!file.Contains("_summary"))
-        continue;
+    var fileName = Path.GetFileName(file);
 
-    using (var dataStream = new FileStream(file, FileMode.Open, FileAccess.Read))
+    using (var dataStream = new MemoryStream())
     {
-        if (!ReplaySummaryParser.IsReplaySummaryFile(dataStream))
-            continue;
+        if (file.EndsWith(".gz"))
+        {
+            using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read))    
+            using (var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress))
+            {
+                gzipStream.CopyTo(dataStream);
+                dataStream.Position = 0;
+            }
+        }
+        else
+        {
+            using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read))    
+            {
+                fileStream.CopyTo(dataStream);
+                dataStream.Position = 0;
+            }
+        }
 
-        parser.Load(dataStream, Path.GetFileName(file));
-        parser.Parse();
-
-        var summary = new AoE4WorldReplaysParser.Summary.GameSummaryGenerator().GenerateSummary(parser.Summary);
+        if (ReplaySummaryParser.IsReplaySummaryFile(dataStream))
+        {
+            try
+            {
+                parser.Load(dataStream, fileName);
+                parser.Parse();
+                var playerNames = string.Join(", ", parser.Summary.Players.Select(v => v.PlayerDetails.playerName));
+                Console.WriteLine($"{fileName}: ReplaySummary for {playerNames}");
+                var summary = new AoE4WorldReplaysParser.Summary.GameSummaryGenerator().GenerateSummary(parser.Summary);   
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{fileName}: ReplaySummary failed to parse: {ex.ToString()}");
+            }
+        }
+        else if (ReplayFullParser.IsReplayFullFile(dataStream))
+        {
+            Console.WriteLine($"{fileName}: Full Replay file, further parsing not implemented");
+        }
+        else
+        {
+            Console.WriteLine($"{fileName}: Unsupported file type or corrupted replay file");
+        }
     }
 }
 
+// We generate a bunch of csv files for each struct type, with all parsed replay summaries lobbed together, this allowed comparitive analysis of unknown fields.
 parser.GenerateReport(reportsDir);

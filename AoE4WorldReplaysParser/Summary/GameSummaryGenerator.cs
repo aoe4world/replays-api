@@ -207,7 +207,7 @@ public class GameSummaryGenerator
             else
             {
                 _startingBuildings.Add(entity);
-                _knownBuildingsByCoord[Tuple.Create(entity.SpawnX.Value, entity.SpawnY.Value)] = entity;
+                //_knownBuildingsByCoord[Tuple.Create(entity.SpawnX.Value, entity.SpawnY.Value)] = entity;
             }
 
             player.StartingUnits.Add(entity);
