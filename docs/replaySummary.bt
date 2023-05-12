@@ -136,6 +136,9 @@ string formatDataSTLSLostEntity(DataSTLSLostEntity &data) {
 
 
 struct DataSTLS(int32 version) {
+    if (version != 2003)
+        Printf("%Xh: DataSTLS version %u is unsupported\r\n", startof(this), version);
+
 	byte  unknown1;
 	int32 unknown2;
 	int32 unknown3;
@@ -237,11 +240,16 @@ enum <int32> PlayerColor {
 };
 
 struct DataSTPD(int32 version) {
+    if (version != 2029 && version != 2030 && version != 2033)
+        Printf("%Xh: DataSTPD version %u is unsupported\r\n", startof(this), version);
+
 	int32 playerId                  <comment="ID of the player">;
 	UString playerName              <comment="Name of the player">;
 	int32 outcome                   <comment="So far 5, 6 or 8">;
 	int32 unknown3                  <comment="So far 0">;
 	int32 eliminatedAtTimestamp     <comment="Timestamp at which player was eliminated, in seconds. -1=winner/still in game. could also be just 'left' instead of eliminated.">;
+    if (version >= 2033)    
+        int32 unknown4              <comment="Got added in v2033, so far has been -1">;
     int32 unknown5a;                // is 7 for losing players (so initial units), and is same/close as 5b for winning players
     int32 unknown5b;
     int32 unitsProduced;
@@ -266,7 +274,6 @@ struct DataSTPD(int32 version) {
     int32 unknown5v;
     int32 unknown6;
     int32 unknown7;                 // 'bprod'
-    int32 unknown8;
     ResourceDict unknownItems1;
     int32 buildingsLost;            // 'blost'
     int32 unknown9a;
@@ -377,7 +384,7 @@ struct DataSTPD(int32 version) {
     int32 unknown30c;
     float unknown30d        <comment="Maybe timestamp player left the game?">;
     if (version >= 2030)
-        PlayerColor playerColor <comment="This might be the player color that got added?">;
+        PlayerColor playerColor;
 
     if (outcome != 5 &&
         outcome != 6 &&
@@ -404,6 +411,9 @@ struct DataSTLUEntry {
 //  STLU appears to contain certain interactions, it lists units of the opponent.
 //  These aren't always 'lost' units, so could be simply attacked units. It doesn't list own units.
 struct DataSTLU(int32 version) {
+    if (version != 2009)
+        Printf("%Xh: DataSTLU version %u is unsupported\r\n", startof(this), version);
+
 	int32 pbgid         <comment="Unique unit type id as known in attrib. See cardinal/attrib/instances/sbps/races/rus/unit_scout_1_rus.xml eg 133475 = scout">;
     ResourceDict unknownResources   <comment="TBD: This is the unit costs, but I don't know if this is adjusted for upgrades and why it's present in this block.">;
     int32 numProduced   <comment="Total Produced">;
@@ -443,6 +453,9 @@ struct DataSTLU(int32 version) {
 //------------------------------------------------
 
 typedef struct(int32 version) {
+    if (version != 2)
+        Printf("%Xh: DataSTLB version %u is unsupported\r\n", startof(this), version);
+
 	ubyte  unknown1;
 	String buildingType;
 	int16  unknown2         <comment="Always 0 so far">;
@@ -477,6 +490,9 @@ typedef struct {
 } DataSTLPEntry;
 
 typedef struct(int32 version) {
+    if (version != 2002)
+        Printf("%Xh: DataSTLP version %u is unsupported\r\n", startof(this), version);
+
     byte   unknown1;
     String commandType;
     int16  unknown2;
@@ -502,6 +518,9 @@ struct DataSTLCEntry {
 
 // Wait, is this wololo? 3 knights
 struct DataSTLC(int32 version) {
+    if (version != 1)
+        Printf("%Xh: DataSTLC version %u is unsupported\r\n", startof(this), version);
+
     int32 count;
     if (count)
         DataSTLCEntry entries[count];
@@ -529,6 +548,9 @@ struct DataSTLAGroup {
 };
 
 struct DataSTLA(int32 version) {
+    if (version != 1)
+        Printf("%Xh: DataSTLA version %u is unsupported\r\n", startof(this), version);
+\
     int32 count;
     if (count)
         DataSTLAEntry entries[count];
@@ -581,6 +603,9 @@ struct DataSTDDUnitGroup {
 };
 
 struct DataSTDD(int32 version) {
+    if (version != 1001)
+        Printf("%Xh: DataSTDD version %u is unsupported\r\n", startof(this), version);
+
 	int32 buildingCount;
     if (buildingCount)
 	    DataSTDDBuildingGroup buildings[buildingCount] <optimize=false>;

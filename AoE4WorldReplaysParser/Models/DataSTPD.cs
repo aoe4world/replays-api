@@ -119,6 +119,7 @@ public class DataSTPD : DataModelBase, IDeserializable
     public int outcome;
     public int unknown3;
     public int timestampEliminated;
+    public int? unknown4;
     public int unknown5a;
     public int unknown5b;
     public int unitsProduced;
@@ -242,7 +243,7 @@ public class DataSTPD : DataModelBase, IDeserializable
 
     public void Deserialize(RelicBlobReader reader)
     {
-        reader.AssertStructVersion(2029, 2030);
+        reader.AssertStructVersion(2029, 2030, 2033);
 
         playerId = reader.ReadInt32();
         playerName = reader.ReadPrefixedUnicodeString();
@@ -250,6 +251,8 @@ public class DataSTPD : DataModelBase, IDeserializable
         outcome = reader.ReadInt32();
         unknown3 = reader.ReadInt32();
         timestampEliminated = reader.ReadInt32();
+        if (reader.StructVersion >= 2033)
+            unknown4 = reader.ReadInt32();
         unknown5a = reader.ReadInt32();
         unknown5b = reader.ReadInt32();
         unitsProduced = reader.ReadInt32();

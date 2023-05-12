@@ -115,7 +115,7 @@ public class DataSTLS : DataModelBase, IDeserializable
     [ExpectedValue(1, "Notice: Was always 1")]
     public int unknown2;
     public int unknown3;
-    public int unknown4;
+    public int gameLength;
     [ExpectedValue(0, "Notice: Was always 0")]
     public int unknown5;
     public DataSTLSCreatedEntity[] createdEntities;
@@ -131,7 +131,7 @@ public class DataSTLS : DataModelBase, IDeserializable
         unknown1 = reader.ReadByte();
         unknown2 = reader.ReadInt32();
         unknown3 = reader.ReadInt32();
-        unknown4 = reader.ReadInt32();
+        gameLength = reader.ReadInt32();
         unknown5 = reader.ReadInt32();
         createdEntities = reader.ReadPrefixedArray<DataSTLSCreatedEntity>();
         lostEntities = reader.ReadPrefixedArray<DataSTLSLostEntity>();
