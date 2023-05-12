@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AoE4WorldReplaysTester": {
+      "commandName": "Project",
+      "commandLineArgs": "../examples"
+    }
+  }
+}
