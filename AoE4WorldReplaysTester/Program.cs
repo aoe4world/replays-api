@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using AoE4WorldReplaysParser;
+using System.Text.Json;
 
 if (args.Length == 0)
 {
@@ -28,6 +29,12 @@ if (!Directory.Exists(reportsDir))
     Directory.CreateDirectory(reportsDir);
 }
 
+void WriteJsonObject(String filename, Object o)   {
+    var options = new JsonSerializerOptions { WriteIndented = true };
+    var jsonString = JsonSerializer.Serialize(o, options);
+    File.WriteAllText(filename, jsonString);
+}
+
 var stopwatch = new Stopwatch();
 stopwatch.Start();
 foreach (var file in Directory.GetFiles(replayDir))
@@ -36,6 +43,11 @@ foreach (var file in Directory.GetFiles(replayDir))
         continue;
 
     var fileName = Path.GetFileName(file);
+    var fileDir = Path.GetDirectoryName(file);
+    var outputDir = Path.Combine(fileDir, "output");
+    System.IO.Directory.CreateDirectory(outputDir);
+    var summaryParsedFile = Path.Combine(outputDir, $"{fileName}.summaryParsed.txt");
+    var summaryFinalFile = Path.Combine(outputDir, $"{fileName}.summaryFinal.txt");
 
     using (var dataStream = new MemoryStream())
     {
@@ -65,7 +77,11 @@ foreach (var file in Directory.GetFiles(replayDir))
                 parser.Parse();
                 var playerNames = string.Join(", ", parser.Summary.Players.Select(v => v.PlayerDetails.playerName));
                 Console.WriteLine($"{fileName}: ReplaySummary for {playerNames}");
-                var summary = new AoE4WorldReplaysParser.Summary.GameSummaryGenerator().GenerateSummary(parser.Summary);   
+
+                WriteJsonObject(summaryParsedFile, parser.Summary);
+                var summary = new AoE4WorldReplaysParser.Summary.GameSummaryGenerator().GenerateSummary(parser.Summary);
+
+                WriteJsonObject(summaryFinalFile, summary);
             }
             catch (Exception ex)
             {
