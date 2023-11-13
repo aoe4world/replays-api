@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using AoE4WorldReplayParser.Services;
+using AoE4WorldReplaysParser.Services;
 using System.Net.Http;
 using System;
 using System.IO;
@@ -18,7 +18,7 @@ public class DebugController : ControllerBase {
     }
 
     [HttpGet(Name = "GetDebug")]
-    public Parser.PlayerSummary[] Get(string path) {
+    public AoE4WorldReplaysParser.Services.Parser.PlayerSummary[] Get(string path) {
         System.IO.DirectoryInfo di = new DirectoryInfo("output");
 
         foreach (FileInfo file in di.GetFiles()) {
@@ -29,7 +29,7 @@ public class DebugController : ControllerBase {
 
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
-        var parser = new Parser(true);
+        var parser = new AoE4WorldReplaysParser.Services.Parser(true);
         var result = parser.Call(dataStream);
         stopwatch.Stop();
 

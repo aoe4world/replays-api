@@ -1,0 +1,740 @@
+//------------------------------------------------
+//--- 010 Editor v12.0.1 Binary Template
+//
+//      File: replaySummary
+//   Authors: Taloth Saldono
+//   Version: 0.1
+//   Purpose: Decode AoE4 Replay Summary Files
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+//------------------------------------------------
+typedef struct {
+    int32 length;
+    if (length) {
+        char   value[length];
+    }
+} String <read=formatString, open=suppress>;
+
+string formatString(String &val) {
+    if (val.length) {
+        return Str("\"%s\"", val.value);
+    } else {
+        return "\"\"";
+    }
+};
+
+typedef struct {
+    int32 length;
+    if (length) {
+        wchar_t value[length];
+    }
+} UString <read=formatUString, open=suppress>;
+
+string formatUString(UString &val) {
+    if (val.length) {
+        return Str("\"%s\"", val.value);
+    } else {
+        return "\"\"";
+    }
+};
+
+typedef struct {
+    String name;
+    float  value;
+} ResourceKeyPair <name=this.name.value, read=this.value>;
+
+typedef struct {
+    int32 length <hidden=true>;
+    if (length == 8 || length == 9) {
+        ResourceKeyPair action;
+        ResourceKeyPair command;
+        ResourceKeyPair food;
+        ResourceKeyPair gold;
+        if (length == 9)
+            ResourceKeyPair merc_byz;
+        ResourceKeyPair militia_hre;
+        ResourceKeyPair popcap;
+        ResourceKeyPair stone;
+        ResourceKeyPair wood;
+    } else {
+        ResourceKeyPair items[length] <optimize=false>;
+    }
+}  ResourceDict <read=formatResourceDict>;
+
+string formatResourceDict(ResourceDict &dict) {
+    string result = "";
+    if (dict.food.value)  result += Str("%g f ", dict.food.value);
+    if (dict.wood.value)  result += Str("%g w ", dict.wood.value);
+    if (dict.gold.value)  result += Str("%g g ", dict.gold.value);
+    if (dict.stone.value) result += Str("%g s ", dict.stone.value);
+    if (dict.merc_byz.value) result += Str("%g o ", dict.merc_byz.value);
+    
+    return result;
+};
+
+//------------------------------------------------
+
+typedef struct {
+	float timestamp         <comment="Timestamp in seconds (float) TODO: Check if it's blueprint, foundation or completion">;
+    int32 playerId;
+    int32 entityId          <comment="Unique ID of the entity around 50xxx, will be 0 for buildings (since they are blueprints, not actual buildings). Buildings get an 100000xxxx id, which we can see for upgrades (which have duplicate id, since they are researched in the same building).">;
+	byte  unknown2;
+	String entityType       <comment="Type of the entity">;
+    int16 unknown4;
+	int16 unknown5;
+	ResourceDict items1     <comment="Not really resources, maybe internal union structure fields reused?">;
+	ResourceDict items2     <comment="Not really resources, maybe internal union structure fields reused?">;
+    float  x                <comment="X coordinate">;
+    float  y                <comment="Y coordinate">;
+
+    if (unknown2 != 1)      Printf("%xh: DataSTLSGroup.unknown2 expected 1 was %u\r\n", startof(unknown2), unknown2);
+    if (unknown4 != 0)      Printf("%xh: DataSTLSGroup.unknown4 expected 0 was %u\r\n", startof(unknown4), unknown4);
+    if (unknown5 != 19 &&
+        unknown5 != 46 &&
+        unknown5 != 52)     Printf("%xh: DataSTLSGroup.unknown5 expected 19,46,52 was %u\r\n", startof(unknown5), unknown5);
+
+} DataSTLSCreatedEntity <read=formatDataSTLSCreatedEntity>;
+
+string formatDataSTLSCreatedEntity(DataSTLSCreatedEntity &data) {
+    return Str("%u:%u -> %s @ %f,%f", data.playerId, data.entityId, data.entityType.value, data.x, data.y);
+};
+
+typedef struct {
+	float timestamp         <comment="Timestamp in seconds (float)">;
+	int32 targetPlayerId;
+	int32 targetEntityId;
+	byte  hasTarget;
+	String targetUnitType;
+    int16 unknown3;	
+    int16 unknown4;
+    int32 attackerPlayerId;
+	int32 attackerEntityId;
+	byte  hasAttacker;
+	String attackerUnitType;
+	if (hasAttacker) {
+		int16 unknown5;
+		int16 unknown6;
+		String weaponType;
+	}
+	float targetX;
+    float targetY;
+    float attackerX         <comment="Note will be float.Max if no attacker">;
+    float attackerY         <comment="Note will be float.Max if no attacker">;
+
+    if (hasTarget != 1)     Printf("%xh: DataSTLSGroupAttack.hasTarget expected 1 was %u\r\n", startof(hasTarget), hasTarget);
+    if (unknown3 != 0)      Printf("%xh: DataSTLSGroupAttack.unknown3 expected 0 was %u\r\n", startof(unknown3), unknown3);
+    if (unknown4 != 19)     Printf("%xh: DataSTLSGroupAttack.unknown4 expected 19 was %u\r\n", startof(unknown4), unknown4);
+} DataSTLSLostEntity <read=formatDataSTLSLostEntity>;
+
+string formatDataSTLSLostEntity(DataSTLSLostEntity &data) {
+    if (data.hasAttacker)
+        return Str("%u:%u:%s by %u:%u:%s", data.targetPlayerId, data.targetEntityId, formatString(data.targetUnitType), data.attackerPlayerId, data.attackerEntityId, formatString(data.attackerUnitType));
+    else
+        return Str("%u:%u:%s", data.targetPlayerId, data.targetEntityId, formatString(data.targetUnitType));
+};
+
+
+struct DataSTLS(int32 version) {
+    if (version != 2003)
+        Printf("%Xh: DataSTLS version %u is unsupported\r\n", startof(this), version);
+
+	byte  unknown1;
+	int32 unknown2;
+	int32 unknown3;
+	int32 gameLength        <comment="Game length in seconds">;
+	int32 unknown5;
+
+	int32 createdCount;	
+    if (createdCount)
+	    DataSTLSCreatedEntity created[createdCount] <optimize=false>;
+		
+	int32 lostCount;
+    if (lostCount) {
+        DataSTLSLostEntity lost[lostCount] <optimize=false>;
+    }
+
+	int32 unknown8          <comment="Warning: this is probably another listCount">;
+
+    if (unknown8 != 0)      Printf("%xh: DataSTLS.unknown8 expected 0 was %u\r\n", startof(unknown8), unknown8);
+};
+
+
+//------------------------------------------------
+
+struct DataSTPDResourceEntry {
+	int32 timestamp         <comment="Timestamp in seconds">;
+	ResourceDict current    <comment="Current resource bank">;
+	ResourceDict perMinute  <comment="Resources gained in last min">;
+	ResourceDict units      <comment="Eco/Army Unit resource value? TODO: This might include palisade walls, and I'm not seeing every unit included. Check via replay. This also includes the fake double starting unit values.">;
+    // NOTE: 'units' has a 370 f offset for Rus at the start of the game.
+    //         0 sec ??.    Expected 6x50f vils and 1x70f scout. so 370f
+    //        20 sec 740f.  Expected 6x50f vils and 1x70f scout. so 370f (diff = 370f) (2nd scout finishes at 22 sec)
+    //        40 sec 810f.  Expected 6x50f vils and 2x70f scout. so 440f (diff = 370f)
+    //        60 sec 860f.
+    //        80 sec 980f.  Expected 8x50f vils and 3x70f scout. so 610f (diff = 370f)
+    //       100 sec 1100f.
+    // So the initial spawn resources are valued doubled? Verify in other games.
+    // NOTE2: For an HRE player it' still 740f... no gold. despite prelates being 100g. Are monks excluded perhaps? Def Check via replay.
+	int32 unknown1;
+};
+
+struct DataSTPDScoreEntry {
+	int32 timestamp         <comment="Timestamp in seconds">;
+	float economy           <comment="Economy score">;
+	float military          <comment="Military score">;
+	float society           <comment="Society score">;
+	float technology        <comment="Technology score">;
+	float total             <comment="Total score">;
+};
+
+enum <int32> UnitType {
+    Vilager = 1,
+    KillVillager = 2,   // TBD
+    Scout = 3,          // Incl Knight, TradeCard, HorseArcher
+    KillScout = 4,      // TBD
+    Building = 5,
+    Cancel = 6,         // TBD or maybe Garrison?
+    Upgrade = 8,
+    Sheep = 12
+};
+
+typedef struct {
+    byte     unknown1       <comment="TBD: Always 1, likely a boolean flag">;
+	int32    pbgid          <comment="Unique unit type id as known in attrib. See cardinal/attrib/instances/sbps/races/rus/unit_scout_1_rus.xml eg 133475 = scout">;
+	int16    unknown2;
+    int16    unknown3;
+	int32    timestamp      <comment="Timestamp in seconds">;
+	String   unitIcon;
+	UString  unitLabel;
+	UString  unknown4;
+	ResourceDict unknownResources;
+	UString  unknown5;
+	UnitType unknown6;
+} DataSTPDUnitEntry <read=Str("%u %s", this.unknown6, formatString(this.unitIcon))>;
+
+
+struct DataSTPDUnknownEntry1 {
+	int32 unknown1;
+	int32 unknown2;
+	int32 unknown3;
+};
+
+
+struct DataSTPDUnknownEntry2 {
+	int32 unknown1;
+	int32 unknown2;
+	int32 unknownPlayerId;
+	float unknown4;
+};
+
+enum <int32> PlayerColor {
+    Blue    = 0,
+    Red     = 1,
+    Yellow  = 2,
+    Green   = 3,
+    Teal    = 4,
+    Purple  = 5,
+    Orange  = 6,
+    Pink    = 7
+};
+
+struct DataSTPD(int32 version) {
+    if (version != 2029 && version != 2030 && version != 2033)
+        Printf("%Xh: DataSTPD version %u is unsupported\r\n", startof(this), version);
+
+	int32 playerId                  <comment="ID of the player">;
+	UString playerName              <comment="Name of the player">;
+	int32 outcome                   <comment="So far 5, 6 or 8">;
+	int32 unknown3                  <comment="So far 0">;
+	int32 eliminatedAtTimestamp     <comment="Timestamp at which player was eliminated, in seconds. -1=winner/still in game. could also be just 'left' instead of eliminated.">;
+    if (version >= 2033)    
+        int32 unknown4              <comment="Got added in v2033, so far has been -1">;
+    int32 unknown5a;                // is 7 for losing players (so initial units), and is same/close as 5b for winning players
+    int32 unknown5b;
+    int32 unitsProduced;
+    int32 unknown5d;                // Units Produced plus something else
+    int32 unitsProducedInfantry;
+    int32 unitsProducedInfantryResources   <comment="Likely Resource Value of produced infantry and not the spent resources">;
+    int32 unknown5g;
+    int32 unknown5h;
+    int32 unknown5i;
+    int32 unknown5j;
+    int32 unknown5k;
+    int32 unknown5l;
+    int32 largestArmy               <comment="This includes the duplicate initial spawn">;
+    int32 unknown5n;                // Units Produced (duplicate?)
+    int32 unknown5o;                // 'edeaths'/'sqlost'
+    int32 unknown5p;                // 'elitekill'/'sqkill'
+    int32 unknown5q;
+    int32 unknown5r;
+    int32 unknown5s;
+    int32 unknown5t;
+    int32 unknown5u;
+    int32 unknown5v;
+    int32 unknown6;
+    int32 unknown7;                 // 'bprod'
+    ResourceDict unknownItems1;
+    int32 buildingsLost;            // 'blost'
+    int32 unknown9a;
+    int32 unitsLost;                // 'edeaths'/'sqlost'
+    int32 unitsLostResources        <comment="Resource value of lost units. (This includes free units such as the 120 res Khan)">;
+    int32 unknown9d;
+    int32 unknown9e;
+    int32 unknown9f;
+    int32 unknown9g;
+    int32 unknown9h;   
+    int32 unknown9i                 <comment="Related to unknownItems2a, only seen for Abassid and French atm. It's a low value, with a couple of resources attached.">; 
+    int32 techResearched;           // this plus unknown9i is 'upg'
+    int32 unknown9k;
+	ResourceDict unknownItems2a;
+	ResourceDict spentResourcesForUpgrades;
+	ResourceDict unknownItems2c;
+	ResourceDict unknownItems2d;    // Remaining unit resources? (includes the double initial vil&scout value, lost players are back to that bonus res, won has much more)
+	int32 unitsKilled;              // 'elitekill'/'sqkill 
+    int32 unitsKilledResources      <comment="Resource value of killed units. (Not the original spent resources and includes free units such as Khan)">;
+    int32 unknown10c;
+    int32 unknown10d;
+    int32 buildingsRazed;           // 'ekills'-'elitekill'?
+    int32 unknown10f;               //  similar to buildingsRazed, but some deviations... sometimes higher, sometimes lower.
+    int32 unknown10g;
+    int32 unknown10h;
+    int32 unknown10i;               // 'abil'
+    int32 unknown10j;
+    int32 unknown10k;
+	ResourceDict totalResourcesGathered <comment="Total Resources Gathered, and thus excludes the starting resources">;
+	ResourceDict totalResourcesSpent    <comment="This is the actual resources spent. So if double producing with Ovoo, it is 100f 20w 120s for 2 horsemen.">;
+	ResourceDict unknownItems3b;
+	ResourceDict unknownItems3c;
+	ResourceDict unknownItems3d;
+	ResourceDict unknownItems3e;
+    int32 unknown11a[6];
+    int32 sacredCaptured;
+    int32 sacredLost;
+    int32 sacredNeutralized;
+	int32 unknown11e[9];
+	ResourceDict unknownItems4;
+	int32 unknown12[4];
+	byte  unknown13;
+	String civ;
+	int32 unknown14a;
+    int32 unknown14b;
+    int32 playerProfileId;
+    int32 unknown14d;
+	int32 resourceTimelineCount;
+    if (resourceTimelineCount)
+	    DataSTPDResourceEntry resourceTimeline[resourceTimelineCount] <optimize=false>;
+	int32 scoreTimelineCount;
+	if (scoreTimelineCount)
+	    DataSTPDScoreEntry scoreTimeline[scoreTimelineCount] <optimize=false>;
+
+    int32 unknown15Count;
+    if (unknown15Count) {
+        DataSTPDUnknownEntry1 unknown15[unknown15Count] <comment="This is an unknown binary array">;
+    }
+
+    int32 unknown16a;
+    int32 unknown16b;
+    int32 unknown16c;
+    int32 unknown16d;
+
+	int32 unitTimelineCount;
+	if (unitTimelineCount)
+	    DataSTPDUnitEntry unitTimeline[unitTimelineCount] <optimize=false>;
+	
+    int32 unknown17Count;
+    if (unknown17Count)
+        DataSTPDUnknownEntry2 unknown17[unknown17Count] <comment="This is an unknown binary array">;
+    
+	int32 unknown18;
+    int32 unknown19;
+    int32 unknown20;
+	int32 unknown21a;
+	int32 unknown21b;
+	int32 unknown21c;      // maybe winflag?
+    int32 unknown22;
+    int32 unknown23;
+    float relicsCaptured;  // Note: pretty unusual they store this as a float
+    float unknown25;
+	int32 unknown26[6];
+    byte  unknown27a;
+    float unknown27b;
+    int32 unknown28a;
+    float unknown28b;
+    int32 unknown28c;
+    float unknown28d       <comment="Game ended timestamp. Or 'result' lock in timestamp.">;
+    float unknown28e;
+    int32 unknown28f;      // Maybe Villager high but Wam had 88 while ingame said 89
+    float unknown28g       <comment="Maybe timestamp player left the game">;
+    int32 unknown29a;
+    int32 unknown29b;
+    int32 unknown29c;
+    int32 unknown29d;
+    int32 unknown29e;
+    int32 unknown29f;
+    int32 unknown29g;
+    int32 unknown29h;
+    int32 age2AvailableTimestampMsec  <comment="Timestamp when age up is available (enough resources), not when it's triggered or completed.">;
+    int32 age3AvailableTimestampMsec  <comment="Timestamp when age up is available (enough resources), not when it's triggered or completed.">;
+    int32 age4AvailableTimestampMsec  <comment="Timestamp when age up is available (enough resources), not when it's triggered or completed.">;
+    int32 unknown29l;
+    int32 unknown29m;
+    int32 unknown30a;
+    float unknown30b;
+    int32 unknown30c;
+    float unknown30d        <comment="Maybe timestamp player left the game?">;
+    if (version >= 2030)
+        PlayerColor playerColor;
+
+    if (outcome != 5 &&
+        outcome != 6 &&
+        outcome != 8)       Printf("%xh: DataSTPD.outcome expected 5, 6 or 8 was %u\r\n", startof(outcome), outcome);
+    if (unknown3 != 0)      Printf("%xh: DataSTPD.unknown3 expected 0 was %u\r\n", startof(unknown3), unknown3);
+};
+
+//------------------------------------------------
+
+struct DataSTLUGroup {
+    byte  unknown1;
+    String unitType;
+    int16 unknown2;
+    int16 unknown3;
+    int32 unknown4;
+    int32 unknown5;
+};
+
+struct DataSTLUEntry {
+    int32 unknown1;
+    int32 unknown2;
+};
+
+//  STLU appears to contain certain interactions, it lists units of the opponent.
+//  These aren't always 'lost' units, so could be simply attacked units. It doesn't list own units.
+struct DataSTLU(int32 version) {
+    if (version != 2009)
+        Printf("%Xh: DataSTLU version %u is unsupported\r\n", startof(this), version);
+
+	int32 pbgid         <comment="Unique unit type id as known in attrib. See cardinal/attrib/instances/sbps/races/rus/unit_scout_1_rus.xml eg 133475 = scout">;
+    ResourceDict unknownResources   <comment="TBD: This is the unit costs, but I don't know if this is adjusted for upgrades and why it's present in this block.">;
+    int32 numProduced   <comment="Total Produced">;
+    int32 unknown3      <comment="Always 0">;
+    int32 numLost       <comment="Count Lost/Killed">;
+    int32 unknown5      <comment="Count Remaining (Note sheep and sheep corpses end up negative, coz they are not produced. It also miscounts the startup vils and scout, which are spawned twice)">;
+    int32 unknown6      <comment="Count Present (ncludes the fake 6 vils and 1 khan... so total 12 vils and 2 khans if you do nothing)">;
+    int32 unknown7;
+    int32 unknown8;
+    int32 unknown9;
+    int32 unknown10;
+    int32 unknown11;
+    int32 unknown12;
+    int32 unknown13;
+    int32 unknown14;
+    int32 unknown15;
+    int32 unknown16;
+    int32 unknown17;
+    int32 unknown18;
+    int32 groupCount;
+    if (groupCount)
+        DataSTLUGroup groups[groupCount] <optimize=false>;
+    int32 unknown19[12];
+    int32 numTotal      <comment="Count Total incl starter and fake starter units">;
+    int32 entryCount;
+    if (entryCount)
+        DataSTLUEntry entries[entryCount];
+    // The Counts in this section requires some explanation:
+    // countProduced is the number of units produced by the player. This excludes starter units and it excludes sheep, sheep carcas and free units such as Khan.
+    // countLost is the number of units that died.
+    // countOwned is the number of units owned at the end of the game, this excludes units that become neutral after loss. it also includes the fake dupe starter units.
+    // countUnknown6 is the number of units alive at the end of the game (units of lost players become neutral, but are still alive).
+    // countTotal is the number of units that existed.
+    // Another note is that this does not track packed/unpacked and other transitions properly (Khan1 -> khan2, Sheep -> sheep carcass)
+};
+
+//------------------------------------------------
+
+typedef struct(int32 version) {
+    if (version != 2)
+        Printf("%Xh: DataSTLB version %u is unsupported\r\n", startof(this), version);
+
+	ubyte  unknown1;
+	String buildingType;
+	int16  unknown2         <comment="Always 0 so far">;
+	int16  unknown3         <comment="Always 19 so far">;
+	float  damageDealt      <comment="Maybe total damage inflicted by building type. Only buildings with weapons/garrison have a value here.">;
+	int32  created          <comment="Number of created buildings">;
+	int32  destroyed        <comment="Number of destroyed/deleted buildings">;
+
+    if (unknown1 != 1)  Printf("%xh: DataSTLB.unknown1 expected 1 was %u\r\n", startof(unknown1), unknown1);
+    if (unknown2 != 0)  Printf("%xh: DataSTLB.unknown2 expected 0 was %u\r\n", startof(unknown2), unknown2);
+    if (unknown3 != 19) Printf("%xh: DataSTLB.unknown3 expected 19 was %u\r\n", startof(unknown3), unknown3);
+} DataSTLB <read=formatDataSTLB>;
+
+string formatDataSTLB(DataSTLB &data) {
+    string suffix = Str("%g", data.created);
+    if (data.destroyed)
+        suffix += Str("-%g", data.destroyed);
+    if (data.damageDealt)
+        suffix += Str(", %g hp", data.damageDealt);
+    return Str("%s (%s)", data.buildingType.value, suffix);
+};
+
+//------------------------------------------------
+
+typedef struct {
+    float x             <comment="X Coordinate">;
+    float y             <comment="Y Coordinate">;
+    int32 timestamp     <comment="Timestamp of the event initiation">;
+// 774. but two attempts happened at 723, but they died
+// First conversion happened at 13:00 (3 knights) 780... so that's probably the one
+// Next wololo start was at 853, so correct, but no conversions.
+} DataSTLPEntry;
+
+typedef struct(int32 version) {
+    if (version != 2002)
+        Printf("%Xh: DataSTLP version %u is unsupported\r\n", startof(this), version);
+
+    byte   unknown1;
+    String commandType;
+    int16  unknown2;
+    int16  category     <comment="command category, 0=ability, 19=building, 52=upgrades/ageups">;
+    int32  amount;
+    int32  timestampFirstUse    <comment="Timestamp in sec of the first usage.">;
+    int32  detailsCount;
+    if (detailsCount)
+        DataSTLPEntry details[detailsCount];
+} DataSTLP <read=formatDataSTLP>;
+
+string formatDataSTLP(DataSTLP &data) {
+    return Str("%ux %s", data.unknown1, formatString(data.commandType));
+};
+
+//------------------------------------------------
+
+struct DataSTLCEntry {
+    int32 pbgid         <comment="Unique unit type id as known in attrib. See cardinal/attrib/instances/sbps">;
+    int32 lost          <comment="Number of units lost in conversion">;
+    int32 gained        <comment="Number of units gained in conversion">;
+};
+
+// Wait, is this wololo? 3 knights
+struct DataSTLC(int32 version) {
+    if (version != 1)
+        Printf("%Xh: DataSTLC version %u is unsupported\r\n", startof(this), version);
+
+    int32 count;
+    if (count)
+        DataSTLCEntry entries[count];
+};
+
+//------------------------------------------------
+
+struct DataSTLAEntry {
+    int32 unknown1;
+    int32 unknown2;
+};
+
+// List of buildings the player did damage to.
+struct DataSTLAGroup {
+    byte   unknown1;
+    String buildingType;
+    int16  unknown3;
+    int16  unknown4;
+    float  damageInflicted;
+
+    if (unknown1 != 1)  Printf("%xh: DataSTLAGroup.unknown1 expected 1 was %u\r\n", startof(unknown1), unknown1);
+    if (unknown3 != 0)  Printf("%xh: DataSTLAGroup.unknown3 expected 0 was %u\r\n", startof(unknown3), unknown3);
+    if (unknown4 != 19) Printf("%xh: DataSTLAGroup.unknown4 expected 19 was %u\r\n", startof(unknown4), unknown4);
+
+};
+
+struct DataSTLA(int32 version) {
+    if (version != 1)
+        Printf("%Xh: DataSTLA version %u is unsupported\r\n", startof(this), version);
+\
+    int32 count;
+    if (count)
+        DataSTLAEntry entries[count];
+    int32 count2;
+    if (count2)
+        DataSTLAEntry entries2[count2];
+    int32 count3;
+    if (count3)
+        DataSTLAGroup groups[count3] <optimize=false>;
+};
+
+//------------------------------------------------
+
+typedef struct {
+	byte   unknown1;
+	String name;
+	int16  unknown2;
+	int16  unknown3;
+	float  unknown4;
+} DataSTDDEntry <read=formatDataSTDDEntry>;
+
+string formatDataSTDDEntry(DataSTDDEntry &data) {
+    return Str("%s", formatString(data.name));
+};
+
+struct DataSTDDSubGroup {
+	int32 playerId;
+	float  unknown2;
+	int32 entryCount;
+    if (entryCount)
+	    DataSTDDEntry entries[entryCount] <optimize=false>;
+};
+
+struct DataSTDDBuildingGroup {
+	int32 entityId     <comment="Building entity id. Note these aren't consistently logged in STLS.">;
+	int32 unknown2     <comment="Not a timestamp">;
+	int32 subGroupCount;
+	DataSTDDSubGroup subGroups[subGroupCount] <optimize=false>;
+	
+	//std::print("ofs 0x{:x} unknown1={} unknown2={}", addressof(this), unknown1, unknown2);
+};
+
+struct DataSTDDUnitGroup {
+	int32 entityId     <comment="Unit entity id as specified in STLS. NOte: this includes units not listed in STLS, probably gaia/wolves etc">;
+	int32 unknown2     <comment="Not a timestamp">;
+	int32 subGroupCount;
+	DataSTDDSubGroup subGroups[subGroupCount] <optimize=false>;
+	
+	//std::print("ofs 0x{:x} unknown1={} unknown2={}", addressof(this), unknown1, unknown2);
+};
+
+struct DataSTDD(int32 version) {
+    if (version != 1001)
+        Printf("%Xh: DataSTDD version %u is unsupported\r\n", startof(this), version);
+
+	int32 buildingCount;
+    if (buildingCount)
+	    DataSTDDBuildingGroup buildings[buildingCount] <optimize=false>;
+	int32 unitCount;
+    if (unitCount)
+	    DataSTDDUnitGroup units[unitCount] <optimize=false>;
+
+};
+
+//------------------------------------------------
+
+struct ChunkyNode;
+
+string GetChunkyNodeName(ChunkyNode &node) {
+    return Str("%s:%s", node.type, node.id);
+};
+
+string GetChunkyNodeValue(ChunkyNode &node) {
+    if (node.type == "DATA") {
+        switch (node.id) {
+            case "STLS":
+        	    //DataSTLS dataSTLS;
+                break;
+            case "STPD":
+        	    //DataSTPD dataSTPD;
+                break;
+            case "STLU":
+        	    //DataSTLU dataSTLU;
+                break;
+            case "STLB":
+        	    return formatDataSTLB(node.dataSTLB);
+            case "STLP":
+        	    return formatDataSTLP(node.dataSTLP);
+                break;
+            case "STLC":
+        	    //DataSTLC dataSTLC;
+                break;
+            case "STLA":
+        	    //DataSTLA dataSTLA;
+                break;
+            case "STDD":
+        	    //DataSTDD dataSTDD;
+                break;
+		};
+    }
+    return "";
+};
+
+typedef struct {
+	char   type[4]  <hidden=true>;
+	char   id[4]    <hidden=true>;
+	int32  version;
+	int32  length   <hidden=true>;
+	String name;
+    local int32 posStart = FTell();
+
+	if (type == "FOLD") {
+        while ((FTell()-posStart)<length) {
+            ChunkyNode node;
+        }
+        // Known structure in ReplaySummary files
+		// STLI/        = StatLoggingInternal
+		//   STLS       = ?
+		//   STPL/      = StatPlayer?
+		//     STLP/    = ?
+		//       STPD   = ?
+		//       STUL/  = ?
+		//         STLU = ?
+		//       STBL/  = ?
+		//         STLB = ?
+		//       STPL/  = ?
+		//         STLP = ?
+		//       STCL/  = ?
+		//         STLC = ?
+		//       STAL/  = ?
+		//         STLA = ?
+		//       STDF/  = ?
+		//         STDD = ?
+    } else if (type == "DATA") {
+        switch (id) {
+            case "DATA":
+                int32 unknown1;
+                break;
+            case "STLS":
+        	    DataSTLS dataSTLS(version);
+                break;
+            case "STPD":
+        	    DataSTPD dataSTPD(version);
+                break;
+            case "STLU":
+        	    DataSTLU dataSTLU(version);
+                break;
+            case "STLB":
+        	    DataSTLB dataSTLB(version);
+                break;
+            case "STLP":
+        	    DataSTLP dataSTLP(version);
+                break;
+            case "STLC":
+        	    DataSTLC dataSTLC(version);
+                break;
+            case "STLA":
+        	    DataSTLA dataSTLA(version);
+                break;
+            case "STDD":
+        	    DataSTDD dataSTDD(version);
+                break;
+		};
+    }
+		
+    local int32 sizeRemaining = length + posStart - FTell();
+    if (sizeRemaining) {
+        Printf("%xh: remainder of %ul bytes\r\n", FTell(), sizeRemaining);
+	    byte remainder[sizeRemaining] <open=suppress, fgcolor=0x7070e0>;
+    }
+}  ChunkyNode <name=GetChunkyNodeName, read=GetChunkyNodeValue>;
+
+struct ChunkyFileHeader {
+	char  magic[16] <open=suppress, read="Relic Chunky">;
+	int32 version;
+	int32 platform;
+};
+
+struct ChunkyFile {
+	ChunkyFileHeader header;
+    ChunkyNode       rootNode <open=true>;
+};
+
+ChunkyFile file <open=true>;
