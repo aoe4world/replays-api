@@ -9,6 +9,8 @@ public class Parser
 {
     public record struct PlayerSummary(
         string Name,
+        int? ProfileId,
+        string? CivilizationAttrib,
         Dictionary<string, List<uint>> Actions,
         Scores Scores,
         Dictionary<string, List<int>> Resources,
@@ -50,6 +52,7 @@ public class Parser
     public record struct BuildOrderEntry(
         string Id,
         string Icon,
+        int? Pbgid,
 
         BuildOrderEntryType Type,
 
@@ -254,6 +257,8 @@ public class Parser
 
             var playerSummary = new PlayerSummary(
                 player.Name,
+                null,
+                null,
                 new Dictionary<string, List<uint>>(),
                 scores,
                 resourcesV2,
@@ -453,8 +458,8 @@ public class Parser
             reader.BaseStream.Read(arr, 0, arr.Length);
 
             var yml = yaml.Serialize(data);
-            File.WriteAllText("output/1_STPD_output.yaml", yml);
-            File.WriteAllBytes("output/1_STPD_remainder.bin", arr);
+            //File.WriteAllText("output/1_STPD_output.yaml", yml);
+            //File.WriteAllBytes("output/1_STPD_remainder.bin", arr);
 
             Debug.WriteLine($"Position = {reader.BaseStream.Position}");
         }
@@ -476,7 +481,7 @@ public class Parser
 
             var timestamp = BitConverter.ToUInt32(timestampSegment[0..4]);
             var icon = ParseString(bytes.Slice(position)).Replace('\\', '/');
-            var id = ParseUnicodeString(bytes.Slice(position + icon.Length - 2));
+            var id = ParseUnicodeString(bytes.Slice(position + icon.Length - 2)).Trim('\t', '\b');
             var typeId = FindByteSequenceValueByte("$ 0", timestampSegment, new byte[] {0x24, 0x00, 0x30, 0x00});
             var normalizedIcon = Regex.Replace(icon, @"_\d$", ",");
 
@@ -513,6 +518,7 @@ public class Parser
                 new BuildOrderEntry {
                     Id = id,
                     Icon = icon,
+                    Pbgid = null,
                     Type = type,
                     Finished = new List<uint>(),
                     Constructed = new List<uint>(),

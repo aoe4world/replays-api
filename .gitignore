@@ -405,3 +405,4 @@ perfcollect
 sampleTrace.trace.zip
 sampleTrace.trace/
 /examples/reports
+/examples/output
