@@ -2,10 +2,11 @@
 
 public struct PlayerResources
 {
-    public float food;
-    public float gold;
-    public float stone;
-    public float wood;
+    public float food { get; set; }
+    public float gold { get; set; }
+    public float stone { get; set; }
+    public float wood { get; set; }
+    public float merc_byz { get; set; }
 }
 
 public class PlayerTimeline

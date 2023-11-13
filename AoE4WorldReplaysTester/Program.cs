@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using AoE4WorldReplaysParser;
 using System.Text.Json;
+using AoE4WorldReplaysAPI.Services;
 
 if (args.Length == 0)
 {
@@ -16,6 +17,7 @@ var replayDir = args[0];
 
 if (!Directory.Exists(replayDir))
 {
+    replayDir = Path.GetFullPath(replayDir);
     Console.WriteLine($"Replay folder '{replayDir}' does not exist");
     Environment.ExitCode = -1;
     return;
@@ -46,10 +48,12 @@ foreach (var file in Directory.GetFiles(replayDir))
     var fileDir = Path.GetDirectoryName(file);
     var outputDir = Path.Combine(fileDir, "output");
     System.IO.Directory.CreateDirectory(outputDir);
-    var summaryParsedFile = Path.Combine(outputDir, $"{fileName}.summaryParsed.txt");
-    var summaryFinalFile = Path.Combine(outputDir, $"{fileName}.summaryFinal.txt");
+    var summaryParsedFile = Path.Combine(outputDir, $"{fileName}.summaryParsed.json");
+    var summaryFinalFile = Path.Combine(outputDir, $"{fileName}.summaryFinal.json");
+    var summaryCompatOldFile = Path.Combine(outputDir, $"{fileName}.summaryCompatOld.json");
+    var summaryCompatNewFile = Path.Combine(outputDir, $"{fileName}.summaryCompatNew.json");
 
-    using (var dataStream = new MemoryStream())
+  using (var dataStream = new MemoryStream())
     {
         if (file.EndsWith(".gz"))
         {
@@ -82,6 +86,17 @@ foreach (var file in Directory.GetFiles(replayDir))
                 var summary = new AoE4WorldReplaysParser.Summary.GameSummaryGenerator().GenerateSummary(parser.Summary);
 
                 WriteJsonObject(summaryFinalFile, summary);
+
+                {
+                    dataStream.Position = 0;
+                    var parserOld = new AoE4WorldReplaysParser.Services.Parser(false);
+                    var result = parserOld.Call(dataStream);
+
+                    WriteJsonObject(summaryCompatOldFile, result);
+
+                    var resultCompat = CompatConverter.Convert(parser.Summary, summary);
+                    WriteJsonObject(summaryCompatNewFile, resultCompat);
+                }
             }
             catch (Exception ex)
             {

@@ -49,11 +49,13 @@ typedef struct {
 
 typedef struct {
     int32 length <hidden=true>;
-    if (length == 8) {
+    if (length == 8 || length == 9) {
         ResourceKeyPair action;
         ResourceKeyPair command;
         ResourceKeyPair food;
         ResourceKeyPair gold;
+        if (length == 9)
+            ResourceKeyPair merc_byz;
         ResourceKeyPair militia_hre;
         ResourceKeyPair popcap;
         ResourceKeyPair stone;
@@ -69,6 +71,7 @@ string formatResourceDict(ResourceDict &dict) {
     if (dict.wood.value)  result += Str("%g w ", dict.wood.value);
     if (dict.gold.value)  result += Str("%g g ", dict.gold.value);
     if (dict.stone.value) result += Str("%g s ", dict.stone.value);
+    if (dict.merc_byz.value) result += Str("%g o ", dict.merc_byz.value);
     
     return result;
 };

@@ -81,6 +81,7 @@ public class GameSummaryGenerator
         }
 
         // Phase 2b: Fix Fake Starting Units
+        // Note that this is no longer needed after 7.0.5831
         foreach (var replayPlayer in replaySummary.Players)
         {
             var player = _playerMap[replayPlayer];
@@ -142,7 +143,8 @@ public class GameSummaryGenerator
             food = data.food,
             gold = data.gold,
             stone = data.stone,
-            wood = data.wood
+            wood = data.wood,
+            merc_byz = data.merc_byz,
         };
     }
 
@@ -201,7 +203,10 @@ public class GameSummaryGenerator
 
             if (entity.Id != 0)
             {
-                _startingUnits[entity.Id - firstUnitId] = entity;
+                var index = entity.Id - firstUnitId;
+                if (index >= _startingUnits.Length)
+                    Array.Resize(ref _startingUnits, index + 1);
+                _startingUnits[index] = entity;
                 _knownUnitsById[entity.Id] = entity;
             }
             else
@@ -248,12 +253,12 @@ public class GameSummaryGenerator
                     }
                     else
                     {
-                        System.Diagnostics.Debugger.Break();
+                        //System.Diagnostics.Debugger.Break();
                     }
                 }
                 else
                 {
-                    System.Diagnostics.Debugger.Break();
+                    //System.Diagnostics.Debugger.Break();
                 }
             }
             
@@ -263,13 +268,13 @@ public class GameSummaryGenerator
                 {
                     if (buildingEntity.Id == 0)
                         buildingEntity.Id = createdEntity.entityId;
-                    else if (buildingEntity.Id != createdEntity.entityId) // Note, this can happen if a building is already destroyed and another one built in it's place.
-                        System.Diagnostics.Debugger.Break();
+                    //else if (buildingEntity.Id != createdEntity.entityId) // Note, this can happen if a building is already destroyed and another one built in it's place.
+                    //    System.Diagnostics.Debugger.Break();
 
                 }
                 else
                 {
-                    System.Diagnostics.Debugger.Break();
+                    //System.Diagnostics.Debugger.Break();
                 }
 
                 continue;
