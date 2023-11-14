@@ -26,11 +26,11 @@ namespace AoE4WorldReplaysAPI.Services
                     Actions = MapActions(replaySummary.Players[i], player),
                     Scores = new Parser.Scores
                     {
-                        Total = player.Timeline.Last().ScoreTotal,
-                        Economy = player.Timeline.Last().ScoreEconomy,
-                        Military = player.Timeline.Last().ScoreMilitary,
-                        Society = player.Timeline.Last().ScoreSociety,
-                        Technology = player.Timeline.Last().ScoreTechnology
+                        Total = player.Timeline.LastOrDefault()?.ScoreTotal ?? 0.0f,
+                        Economy = player.Timeline.LastOrDefault()?.ScoreEconomy ?? 0.0f,
+                        Military = player.Timeline.LastOrDefault()?.ScoreMilitary ?? 0.0f,
+                        Society = player.Timeline.LastOrDefault()?.ScoreSociety ?? 0.0f,
+                        Technology = player.Timeline.LastOrDefault()?.ScoreTechnology ?? 0.0f
                     },
                     Resources = MapResources(player.Timeline, player.Civ),
                     BuildOrder = MapBuildOrder(replaySummary.Players[i], player)
@@ -101,7 +101,7 @@ namespace AoE4WorldReplaysAPI.Services
 
         private static BuildOrderEntry[] MapBuildOrder(ReplaySummaryPlayer replaySummary, AoE4WorldReplaysParser.Summary.PlayerSummary playerSummary)
         {
-            var result = new Dictionary<int, BuildOrderEntry>();
+            var result = new Dictionary<string, BuildOrderEntry>();
 
             // Older versions of the game duplicated starting units, the GameSummaryGenerator detects this, but the raw structure doesn't, so piggyback on that mechanism.
             var fakes = playerSummary.FakeStartingUnits?.ToList() ?? new List<PlayerEntity>();
@@ -111,6 +111,8 @@ namespace AoE4WorldReplaysAPI.Services
             {
                 if (string.IsNullOrEmpty(unit.unitIcon))
                     continue;
+
+                var id = unit.pbgid?.ToString() ?? unit.modid?.ToHex() ?? unit.unitIcon;
 
                 var timestamp = (uint)unit.timestamp;
                 var icon = unit.unitIcon.Replace('\\', '/');
@@ -154,12 +156,13 @@ namespace AoE4WorldReplaysAPI.Services
                     }
                 }
 
-                if (!result.TryGetValue(unit.pbgid, out var buildOrderEntry))
+                if (!result.TryGetValue(id, out var buildOrderEntry))
                 {
                     buildOrderEntry = new BuildOrderEntry(
                         unit.unitLabel.Trim('$'),
                         icon,
                         unit.pbgid,
+                        unit.modid?.ToHex(),
                         type,
                         new List<uint>(),
                         new List<uint>(),
@@ -170,7 +173,7 @@ namespace AoE4WorldReplaysAPI.Services
                         new Dictionary<uint, List<uint>>()
                         );
 
-                    result[unit.pbgid] = buildOrderEntry;
+                    result[id] = buildOrderEntry;
                 }
 
                 if (typeId == 1)

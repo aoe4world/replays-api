@@ -53,6 +53,7 @@ public class Parser
         string Id,
         string Icon,
         int? Pbgid,
+        string? Modid,
 
         BuildOrderEntryType Type,
 

@@ -42,8 +42,9 @@ public class DataSTPDScoreEntry : DataModelBase, IDeserializable
 
 public class DataSTPDUnitEntry : DataModelBase, IDeserializable
 {
-    public byte unknown1;
-    public int pbgid;
+    public byte idtype;
+    public int? pbgid;
+    public byte[] modid;
     public short unknown2;
     public short unknown3;
     public int timestamp;
@@ -56,8 +57,11 @@ public class DataSTPDUnitEntry : DataModelBase, IDeserializable
 
     public void Deserialize(RelicBlobReader reader)
     {
-        unknown1 = reader.ReadByte();
-        pbgid = reader.ReadInt32();
+        idtype = reader.ReadByte();
+        if (idtype == 1)
+            pbgid = reader.ReadInt32();
+        else if (idtype == 2)
+            modid = reader.ReadBytes(20);
         unknown2 = reader.ReadInt16();
         unknown3 = reader.ReadInt16();
         timestamp = reader.ReadInt32();

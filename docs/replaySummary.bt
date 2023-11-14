@@ -71,7 +71,7 @@ string formatResourceDict(ResourceDict &dict) {
     if (dict.wood.value)  result += Str("%g w ", dict.wood.value);
     if (dict.gold.value)  result += Str("%g g ", dict.gold.value);
     if (dict.stone.value) result += Str("%g s ", dict.stone.value);
-    if (dict.merc_byz.value) result += Str("%g o ", dict.merc_byz.value);
+    if (dict.length == 9 && dict.merc_byz.value) result += Str("%g o ", dict.merc_byz.value);
     
     return result;
 };
@@ -202,9 +202,19 @@ enum <int32> UnitType {
     Sheep = 12
 };
 
+enum <byte> UnitIDType {
+    None = 0,
+    Pbgid = 1,          // Official built-in identifiers
+    Custom = 2          // Used for custom units from mods
+};
+
 typedef struct {
-    byte     unknown1       <comment="TBD: Always 1, likely a boolean flag">;
-	int32    pbgid          <comment="Unique unit type id as known in attrib. See cardinal/attrib/instances/sbps/races/rus/unit_scout_1_rus.xml eg 133475 = scout">;
+    UnitIDType  idType      <comment="Normally 1, but is 2 for custom mod units">;
+    if (idType == 1) {
+    	int32    pbgid      <comment="Unique unit type id as known in attrib. See cardinal/attrib/instances/sbps/races/rus/unit_scout_1_rus.xml eg 133475 = scout">;
+    } else if (idType == 2) {
+        byte modid[20]      <format=hex, comment="New units via mods get a 20 byte hex identifier">;
+    }
 	int16    unknown2;
     int16    unknown3;
 	int32    timestamp      <comment="Timestamp in seconds">;

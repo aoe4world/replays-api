@@ -25,6 +25,10 @@ public class SummaryController : ControllerBase
     [HttpGet(Name = "GetSummary")]
     public async Task<AoE4WorldReplaysParser.Services.Parser.PlayerSummary[]> GetSummaryCompat(string url)
     {
+        var name = Path.GetFileName(new Uri(url).AbsolutePath);
+
+        _logger.LogInformation("Processing summary {0} from url {0}", name, url);
+
         var compressedData = await _httpClient.GetStreamAsync(url);
 
         MemoryStream dataStream = new MemoryStream();
@@ -34,13 +38,11 @@ public class SummaryController : ControllerBase
             dataStream.Seek(0, SeekOrigin.Begin);
         }
 
-        var name = Path.GetFileName(new Uri(url).AbsolutePath);
         var parser = new AoE4WorldReplaysParser.ReplaySummaryParser(dataStream, name);
         parser.Parse();
 
         var replaySummary = parser.Summary;
         var gameSummary = new GameSummaryGenerator().GenerateSummary(replaySummary);
-
 
         var result = CompatConverter.Convert(replaySummary, gameSummary);
 
