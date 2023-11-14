@@ -108,7 +108,7 @@ public class GameSummaryGenerator
         _startingBuildings = new List<PlayerEntity>();
 
         // Helper array to track starting units that aren't explicitly logged
-        var firstUnitCreated = _replaySummary.DataSTLS.createdEntities.Where(v => v.entityId != 0).FirstOrDefault()?.entityId ?? firstUnitId;
+        var firstUnitCreated = _replaySummary.DataSTLS.createdEntities.Where(v => v.entityId != 0 && v.entityId < 1000000000).FirstOrDefault()?.entityId ?? firstUnitId;
         _startingUnits = new PlayerEntity[firstUnitCreated - firstUnitId];
 
         _playerMap = new Dictionary<ReplaySummaryPlayer, PlayerSummary>();

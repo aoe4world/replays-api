@@ -29,19 +29,23 @@ public class SummaryController : ControllerBase
 
         _logger.LogInformation("Processing summary {0} from url {0}", name, url);
 
-        var compressedData = await _httpClient.GetStreamAsync(url);
+        AoE4WorldReplaysParser.ReplaySummary replaySummary;
 
-        MemoryStream dataStream = new MemoryStream();
-        using (var decompressor = new GZipStream(compressedData, CompressionMode.Decompress))
+        using (var dataStream = new MemoryStream())
         {
-            decompressor.CopyTo(dataStream);
-            dataStream.Seek(0, SeekOrigin.Begin);
+            using (var compressedData = await _httpClient.GetStreamAsync(url))
+            using (var decompressor = new GZipStream(compressedData, CompressionMode.Decompress))
+            {
+                await decompressor.CopyToAsync(dataStream);
+                dataStream.Seek(0, SeekOrigin.Begin);
+            }
+
+            var parser = new AoE4WorldReplaysParser.ReplaySummaryParser(dataStream, name);
+            parser.Parse();
+
+            replaySummary = parser.Summary;
         }
 
-        var parser = new AoE4WorldReplaysParser.ReplaySummaryParser(dataStream, name);
-        parser.Parse();
-
-        var replaySummary = parser.Summary;
         var gameSummary = new GameSummaryGenerator().GenerateSummary(replaySummary);
 
         var result = CompatConverter.Convert(replaySummary, gameSummary);
