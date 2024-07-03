@@ -52,6 +52,7 @@ namespace AoE4WorldReplaysAPI.Services
             result["stone"] = (int)Math.Round(resources.stone);
             result["wood"] = (int)Math.Round(resources.wood);
             result["oliveoil"] = (int)Math.Round(resources.merc_byz);
+            result["total"] = result.Values.Sum();
             return result;
         }
 
