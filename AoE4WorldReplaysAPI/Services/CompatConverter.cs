@@ -32,6 +32,8 @@ namespace AoE4WorldReplaysAPI.Services
                         Society = player.Timeline.LastOrDefault()?.ScoreSociety ?? 0.0f,
                         Technology = player.Timeline.LastOrDefault()?.ScoreTechnology ?? 0.0f
                     },
+                    TotalResourcesGathered = MapResourcesTotal(player.TotalResourcesGathered),
+                    TotalResourcesSpent = MapResourcesTotal(player.TotalResourcesSpent),
                     Resources = MapResources(player.Timeline, player.Civ),
                     BuildOrder = MapBuildOrder(replaySummary.Players[i], player)
                 });
@@ -40,6 +42,17 @@ namespace AoE4WorldReplaysAPI.Services
             }
 
             return result.ToArray();
+        }
+
+        private static Dictionary<string, int> MapResourcesTotal(PlayerResources resources)
+        {
+            var result = new Dictionary<string, int>();
+            result["food"] = (int)Math.Round(resources.food);
+            result["gold"] = (int)Math.Round(resources.gold);
+            result["stone"] = (int)Math.Round(resources.stone);
+            result["wood"] = (int)Math.Round(resources.wood);
+            result["oliveoil"] = (int)Math.Round(resources.merc_byz);
+            return result;
         }
 
         private static Dictionary<string, List<int>> MapResources(List<PlayerTimeline> timeline, string civilization)

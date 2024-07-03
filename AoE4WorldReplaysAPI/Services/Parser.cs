@@ -13,6 +13,8 @@ public class Parser
         string? CivilizationAttrib,
         Dictionary<string, List<uint>> Actions,
         Scores Scores,
+        Dictionary<string, int> TotalResourcesGathered,
+        Dictionary<string, int> TotalResourcesSpent,
         Dictionary<string, List<int>> Resources,
         // Resources[] ResourcesOld,
         BuildOrderEntry[] BuildOrder
@@ -262,6 +264,8 @@ public class Parser
                 null,
                 new Dictionary<string, List<uint>>(),
                 scores,
+                new Dictionary<string, int>(),
+                new Dictionary<string, int>(),
                 resourcesV2,
                 // resourcesV1,
                 buildOrder
