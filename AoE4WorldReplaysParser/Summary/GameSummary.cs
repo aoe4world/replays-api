@@ -1,6 +1,6 @@
 ﻿namespace AoE4WorldReplaysParser.Summary;
 
-public struct PlayerResources
+public class PlayerResources
 {
     public float food { get; set; }
     public float gold { get; set; }
@@ -15,6 +15,7 @@ public class PlayerTimeline
     public PlayerResources ResourcesCurrent { get; set; }
     public PlayerResources ResourcesPerMinute { get; set; }
     public PlayerResources ResourcesUnitValue { get; set; }
+    public PlayerResources ResourcesCumulative { get; set; }
 
     public float ScoreTotal { get; set; }
     public float ScoreEconomy { get; set; }

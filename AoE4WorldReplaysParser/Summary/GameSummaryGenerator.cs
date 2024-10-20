@@ -118,20 +118,25 @@ public class GameSummaryGenerator
 
     protected void ConvertPlayerTimeline(PlayerSummary player, ReplaySummaryPlayer replayPlayer)
     {
+        var scoreTimelineOffset = (replayPlayer.PlayerDetails.scoreTimeline.Length > 0 && replayPlayer.PlayerDetails.scoreTimeline[0].timestamp == 20) ? -1 : 0;
         for (var i = 0; i < replayPlayer.PlayerDetails!.resourceTimeline.Length; i++)
         {
+            var resourceTimeline = replayPlayer.PlayerDetails.resourceTimeline[i];
+            var scoreTimelineIndex = i + scoreTimelineOffset;
+            var scoreTimeline = scoreTimelineIndex >= 0 ? replayPlayer.PlayerDetails.scoreTimeline[scoreTimelineIndex] : new Models.DataSTPDScoreEntry();
             player.Timeline.Add(new PlayerTimeline
             {
-                Timestamp = replayPlayer.PlayerDetails.resourceTimeline[i].timestamp,
-                ResourcesCurrent = ConvertResources(replayPlayer.PlayerDetails.resourceTimeline[i].current),
-                ResourcesPerMinute = ConvertResources(replayPlayer.PlayerDetails.resourceTimeline[i].perMinute),
-                ResourcesUnitValue = ConvertResources(replayPlayer.PlayerDetails.resourceTimeline[i].units),
+                Timestamp = resourceTimeline.timestamp,
+                ResourcesCurrent = ConvertResources(resourceTimeline.current),
+                ResourcesPerMinute = ConvertResources(resourceTimeline.perMinute),
+                ResourcesUnitValue = ConvertResources(resourceTimeline.units),
+                ResourcesCumulative = resourceTimeline.cumulative != null ? ConvertResources(resourceTimeline.cumulative) : null,
 
-                ScoreTotal = replayPlayer.PlayerDetails.scoreTimeline[i].total,
-                ScoreEconomy = replayPlayer.PlayerDetails.scoreTimeline[i].economy,
-                ScoreMilitary = replayPlayer.PlayerDetails.scoreTimeline[i].military,
-                ScoreSociety = replayPlayer.PlayerDetails.scoreTimeline[i].society,
-                ScoreTechnology = replayPlayer.PlayerDetails.scoreTimeline[i].technology
+                ScoreTotal = scoreTimeline.total,
+                ScoreEconomy = scoreTimeline.economy,
+                ScoreMilitary = scoreTimeline.military,
+                ScoreSociety = scoreTimeline.society,
+                ScoreTechnology = scoreTimeline.technology
             });
         }
     }

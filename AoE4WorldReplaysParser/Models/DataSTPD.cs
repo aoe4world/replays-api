@@ -8,6 +8,7 @@ public class DataSTPDResourceEntry : DataModelBase, IDeserializable
     public ResourceDict current;
     public ResourceDict perMinute;
     public ResourceDict units;
+    public ResourceDict cumulative;
     public int unknown1;
 
     public void Deserialize(RelicBlobReader reader)
@@ -16,6 +17,13 @@ public class DataSTPDResourceEntry : DataModelBase, IDeserializable
         current = reader.ReadStruct<ResourceDict>();
         perMinute = reader.ReadStruct<ResourceDict>();
         units = reader.ReadStruct<ResourceDict>();
+
+        // Before 12.0.1974 there was a int32 0-2 here, we called it unknown1. Since 1974 there's another RecourceDict, with _another_ int32 0 after it. I think they inserted one ResourceDict without proper versioning.
+        // Regardless, the STPD version remained 2033, so we have to use this behavior to detect the change and hope unknown1 never was >= 9. (9 is the number of resources in the dict, was 8 before olive oil)
+        if (reader.PeekInt32() >= 9)
+        {
+            cumulative = reader.ReadStruct<ResourceDict>();
+        }
         unknown1 = reader.ReadInt32();
     }
 }

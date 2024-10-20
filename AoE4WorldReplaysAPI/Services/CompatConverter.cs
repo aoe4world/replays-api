@@ -65,6 +65,7 @@ namespace AoE4WorldReplaysAPI.Services
             result["gold"] = timeline.Select(v => (int)Math.Round(v.ResourcesCurrent.gold)).ToList();
             result["stone"] = timeline.Select(v => (int)Math.Round(v.ResourcesCurrent.stone)).ToList();
             result["wood"] = timeline.Select(v => (int)Math.Round(v.ResourcesCurrent.wood)).ToList();
+
             result["food_per_min"] = timeline.Select(v => (int)Math.Round(v.ResourcesPerMinute.food)).ToList();
             result["gold_per_min"] = timeline.Select(v => (int)Math.Round(v.ResourcesPerMinute.gold)).ToList();
             result["stone_per_min"] = timeline.Select(v => (int)Math.Round(v.ResourcesPerMinute.stone)).ToList();
@@ -74,6 +75,19 @@ namespace AoE4WorldReplaysAPI.Services
                 result["oliveoil"] = timeline.Select(v => (int)Math.Round(v.ResourcesCurrent.merc_byz)).ToList();
                 result["oliveoil_per_min"] = timeline.Select(v => (int)Math.Round(v.ResourcesPerMinute.merc_byz)).ToList();
             }
+
+            if (timeline.Count > 0 && timeline[0].ResourcesCumulative != null)
+            {
+                result["food_gathered"] = timeline.Select(v => (int)Math.Round(v.ResourcesCumulative.food)).ToList();
+                result["gold_gathered"] = timeline.Select(v => (int)Math.Round(v.ResourcesCumulative.gold)).ToList();
+                result["stone_gathered"] = timeline.Select(v => (int)Math.Round(v.ResourcesCumulative.stone)).ToList();
+                result["wood_gathered"] = timeline.Select(v => (int)Math.Round(v.ResourcesCumulative.wood)).ToList();
+                if (civilization == "byzantine")
+                {
+                    result["oliveoil_gathered"] = timeline.Select(v => (int)Math.Round(v.ResourcesCumulative.merc_byz)).ToList();
+                }
+            }
+
             result["total"] = timeline.Select(v => (int)Math.Round(v.ScoreTotal)).ToList();
             result["military"] = timeline.Select(v => (int)Math.Round(v.ScoreMilitary)).ToList();
             result["economy"] = timeline.Select(v => (int)Math.Round(v.ScoreEconomy)).ToList();

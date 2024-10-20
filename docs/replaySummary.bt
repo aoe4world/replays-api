@@ -179,7 +179,12 @@ struct DataSTPDResourceEntry {
     //       100 sec 1100f.
     // So the initial spawn resources are valued doubled? Verify in other games.
     // NOTE2: For an HRE player it' still 740f... no gold. despite prelates being 100g. Are monks excluded perhaps? Def Check via replay.
-	int32 unknown1;
+	
+    // Before 12.0.1974 there was a int32 0-2 here. Since 1974 there's another RecourceDict, with _another_ int32 0 after it. I think they inserted one ResourceDict without proper versioning.
+    // Regardless, the STPD version remained 2033, so we have to use this behavior to detect the change.
+    if (ReadInt() >= 9)
+        ResourceDict cumulative;
+    int32 unknown1;
 };
 
 struct DataSTPDScoreEntry {

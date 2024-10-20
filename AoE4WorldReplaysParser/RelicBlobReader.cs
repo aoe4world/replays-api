@@ -140,6 +140,14 @@ public partial class RelicBlobReader : BinaryReader
         return result;
     }
 
+    public int PeekInt32()
+    {
+        var pos = BaseStream.Position;
+        var result = ReadInt32();
+        BaseStream.Position = pos;
+        return result;
+    }
+
     public void Assert(bool condition, string message = null)
     {
         if (!condition)
