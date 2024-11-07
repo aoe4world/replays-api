@@ -168,6 +168,7 @@ struct DataSTLS(int32 version) {
 struct DataSTPDResourceEntry {
 	int32 timestamp         <comment="Timestamp in seconds">;
 	ResourceDict current    <comment="Current resource bank">;
+	// WARNING: this is wrong, cumulative was inserted between current & perMinute, however I don't have an easy way to swap field in 010editor.
 	ResourceDict perMinute  <comment="Resources gained in last min">;
 	ResourceDict units      <comment="Eco/Army Unit resource value? TODO: This might include palisade walls, and I'm not seeing every unit included. Check via replay. This also includes the fake double starting unit values.">;
     // NOTE: 'units' has a 370 f offset for Rus at the start of the game.
@@ -182,6 +183,7 @@ struct DataSTPDResourceEntry {
 	
     // Before 12.0.1974 there was a int32 0-2 here. Since 1974 there's another RecourceDict, with _another_ int32 0 after it. I think they inserted one ResourceDict without proper versioning.
     // Regardless, the STPD version remained 2033, so we have to use this behavior to detect the change.
+    // WARNING: this is wrong, cumulative was inserted between current & perMinute, however I don't have an easy way to swap field in 010editor.
     if (ReadInt() >= 9)
         ResourceDict cumulative;
     int32 unknown1;
