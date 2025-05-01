@@ -5,18 +5,18 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
-    '-t', 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest',
-    '-t', 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:$COMMIT_SHA',
-    '--cache-from', 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest',
+    '-t', 'europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:latest',
+    '-t', 'europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:$COMMIT_SHA',
+    '--cache-from', 'europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:latest',
     '.'
   ]
 - name: "gcr.io/cloud-builders/docker"
-  args: ["push", "gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:$COMMIT_SHA"]
+  args: ["push", "europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:$COMMIT_SHA"]
 - name: "gcr.io/cloud-builders/kubectl"
-  args: ["set", "image", "deployment/replays-api", "api=gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:$COMMIT_SHA"]
+  args: ["set", "image", "deployment/replays-api", "api=europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:$COMMIT_SHA"]
   env:
   - 'CLOUDSDK_COMPUTE_REGION=europe-west3'
   - 'CLOUDSDK_CONTAINER_CLUSTER=primary'
 
 images:
-- 'gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest'
+- 'europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:latest'
