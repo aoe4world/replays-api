@@ -1,7 +1,7 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
-  args: ['-c', 'docker pull gcr.io/aoe4-world-production/github.com/aoe4world/replays-api:latest']
+  args: ['-c', 'docker pull europe-docker.pkg.dev/aoe4-world-production/main/github.com/aoe4world/replays-api:latest']
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
