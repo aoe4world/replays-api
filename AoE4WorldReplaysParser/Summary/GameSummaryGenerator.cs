@@ -123,7 +123,7 @@ public class GameSummaryGenerator
         {
             var resourceTimeline = replayPlayer.PlayerDetails.resourceTimeline[i];
             var scoreTimelineIndex = i + scoreTimelineOffset;
-            var scoreTimeline = scoreTimelineIndex >= 0 ? replayPlayer.PlayerDetails.scoreTimeline[scoreTimelineIndex] : new Models.DataSTPDScoreEntry();
+            var scoreTimeline = (scoreTimelineIndex >= 0 && scoreTimelineIndex < replayPlayer.PlayerDetails.scoreTimeline.Length) ? replayPlayer.PlayerDetails.scoreTimeline[scoreTimelineIndex] : new Models.DataSTPDScoreEntry();
             player.Timeline.Add(new PlayerTimeline
             {
                 Timestamp = resourceTimeline.timestamp,
