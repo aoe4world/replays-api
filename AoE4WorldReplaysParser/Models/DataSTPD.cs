@@ -91,11 +91,39 @@ public class DataSTPDUnknownEntry1 : DataModelBase, IDeserializable
     public int unknown2;
     public int unknown3;
 
-    public void Deserialize(RelicBlobReader reader)
+    public virtual void Deserialize(RelicBlobReader reader)
     {
         unknown1 = reader.ReadInt32();
         unknown2 = reader.ReadInt32();
         unknown3 = reader.ReadInt32();
+    }
+}
+
+public class DataSTPDUnknownEntry1b : DataSTPDUnknownEntry1
+{
+    public int unknown4;
+
+    public override void Deserialize(RelicBlobReader reader)
+    {
+        base.Deserialize(reader);
+        unknown4 = reader.ReadInt32(); // Note we found this in 15.1.6970
+    }
+
+    public static bool CheckIfApplicable(RelicBlobReader reader)
+    {
+        // unknown15 is array of struct with either 3 or 4 fields, 4 fields started to appear in 15.1.6970 so probably struct change without version increment.
+        // but unknown16 has been -1 always, so we just read ahead to see if we see that value appear.
+        var pos = reader.BaseStream.Position;
+        reader.ReadPrefixedArray<DataSTPDUnknownEntry1>();
+        reader.ReadInt32();
+        var unknown16b = reader.ReadInt32();
+
+        reader.BaseStream.Position = pos;
+
+        if (unknown16b == -1)
+            return false;
+
+        return true;
     }
 }
 
@@ -341,7 +369,10 @@ public class DataSTPD : DataModelBase, IDeserializable
         unknown14d = reader.ReadInt32();
         resourceTimeline = reader.ReadPrefixedArray<DataSTPDResourceEntry>();
         scoreTimeline = reader.ReadPrefixedArray<DataSTPDScoreEntry>();
-        unknown15 = reader.ReadPrefixedArray<DataSTPDUnknownEntry1>();
+        if (DataSTPDUnknownEntry1b.CheckIfApplicable(reader))
+            unknown15 = reader.ReadPrefixedArray<DataSTPDUnknownEntry1b>();
+        else
+            unknown15 = reader.ReadPrefixedArray<DataSTPDUnknownEntry1>();
         unknown16a = reader.ReadInt32();
         unknown16b = reader.ReadInt32();
         unknown16c = reader.ReadInt32();
