@@ -162,7 +162,7 @@ public class GameSummaryGenerator
         // So the mechanic here is to assume there's at least 1 unit that has 1 official instance, but is duped. So 2 TC, 2 scout, 12 vils and 2 sheeps. allowing us to detect the dupes.
         
         var startingUnitEntries = replayPlayer.PlayerDetails.unitTimeline.TakeWhile(v => v.timestamp == 0).ToList();
-        var startingUnitMinCount = startingUnitEntries.GroupBy(v => v.pbgid).Select(g => g.Count()).Min();
+        var startingUnitMinCount = startingUnitEntries.GroupBy(v => v.pbgid).Select(g => g.Count()).DefaultIfEmpty().Min();
         if (startingUnitMinCount == 2 && startingUnitEntries.Count != 2)
         {
             // So this has to be a Standard game with dupes. Take the first half and register that as starting unit.
