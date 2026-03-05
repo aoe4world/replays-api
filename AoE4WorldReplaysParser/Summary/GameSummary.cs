@@ -61,6 +61,7 @@ public class PlayerEntity
 
     public int? KillerPlayerId { get; set; }
     public int? KillerEntityId { get; set; }
+    public string KillerUnitType { get; set; }
     public float? KillerX { get; set; }
     public float? KillerY { get; set; }
     public string KillerWeaponType { get; set; }

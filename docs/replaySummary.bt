@@ -238,6 +238,7 @@ struct DataSTPDUnknownEntry1 {
 	int32 unknown1;
 	int32 unknown2;
 	int32 unknown3;
+	int32 unknown4;
 };
 
 
@@ -379,6 +380,8 @@ struct DataSTPD(int32 version) {
 	int32 unknown26[6];
     byte  unknown27a;
     float unknown27b;
+    if (version >= 2034)
+        int32 unknown27c; // Not sure if the gap is actually here, but it's 4 bytes
     int32 unknown28a;
     float unknown28b;
     int32 unknown28c;
@@ -405,6 +408,31 @@ struct DataSTPD(int32 version) {
     float unknown30d        <comment="Maybe timestamp player left the game?">;
     if (version >= 2030)
         PlayerColor playerColor;
+
+    if (version >= 2033) { // Not sure if these 3 dwords got added in 2033 or a bit earlier.
+        int32 unknown31;
+        int32 unknown32;
+        int32 unknown33;
+    }
+        
+    if (version >= 2034) { // These all seem to be new stats
+        int32 unknown34;
+        float unknown35;
+        int32 unknown36;
+        float unknown37;
+        float unknown38;
+        int32 unknown39;
+        float unknown40;
+        int32 unknown41;
+        float unknown42;
+        float unknown43;
+        float unknown44;
+        int32 unknown45;
+        float unknown46; // End of game? Point of left game, I think.
+        float unknown47;
+        int32 unknown48;
+        float unknown49; // End of game? Point of win condition.
+    }
 
     if (outcome != 5 &&
         outcome != 6 &&

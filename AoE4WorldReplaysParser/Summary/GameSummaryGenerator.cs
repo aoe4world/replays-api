@@ -348,6 +348,7 @@ public class GameSummaryGenerator
             {
                 targetEntity.KillerPlayerId = lostEntity.attackerPlayerId;
                 targetEntity.KillerEntityId = lostEntity.attackerEntityId;
+                targetEntity.KillerUnitType = lostEntity.attackerUnitType;
                 targetEntity.KillerX = lostEntity.attackerX;
                 targetEntity.KillerY = lostEntity.attackerY;
                 targetEntity.KillerWeaponType = lostEntity.weaponType;

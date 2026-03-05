@@ -1,5 +1,7 @@
 ﻿#nullable disable
 
+using System;
+
 namespace AoE4WorldReplaysParser.Models;
 
 public class DataSTPDResourceEntry : DataModelBase, IDeserializable
@@ -20,7 +22,7 @@ public class DataSTPDResourceEntry : DataModelBase, IDeserializable
 
         // Before 12.0.1974 there was a int32 0-2 here, we called it unknown1. Since 1974 there's another RecourceDict, with _another_ int32 0 after it. I think they inserted one ResourceDict (after 'current') without proper versioning.
         // Regardless, the STPD version remained 2033, so we have to use this behavior to detect the change and hope unknown1 never was >= 9. (9 is the number of resources in the dict, was 8 before olive oil)
-        if (reader.PeekInt32() >= 9)
+        if ((reader.StructVersion == 2033 && reader.PeekInt32() >= 9) || reader.StructVersion >= 2034)
         {
             var temp = reader.ReadStruct<ResourceDict>();
             cumulative = perMinute;
@@ -111,6 +113,8 @@ public class DataSTPDUnknownEntry1b : DataSTPDUnknownEntry1
 
     public static bool CheckIfApplicable(RelicBlobReader reader)
     {
+        if (reader.StructVersion >= 2034) return true;
+
         // unknown15 is array of struct with either 3 or 4 fields, 4 fields started to appear in 15.1.6970 so probably struct change without version increment.
         // but unknown16 has been -1 always, so we just read ahead to see if we see that value appear.
         var pos = reader.BaseStream.Position;
@@ -258,6 +262,7 @@ public class DataSTPD : DataModelBase, IDeserializable
     public int[] unknown26;
     public byte unknown27a;
     public float unknown27b;
+    public int? unknown27c;
     public int unknown28a;
     public float unknown28b;
     public int unknown28c;
@@ -283,10 +288,29 @@ public class DataSTPD : DataModelBase, IDeserializable
     public int unknown30c;
     public float unknown30d;
     public PlayerColor? playerColor;
+    public int? unknown31;
+    public int? unknown32;
+    public int? unknown33;
+    public int? unknown34;
+    public float? unknown35;
+    public int? unknown36;
+    public float? unknown37;
+    public float? unknown38;
+    public int? unknown39;
+    public float? unknown40;
+    public int? unknown41;
+    public float? unknown42;
+    public float? unknown43;
+    public float? unknown44;
+    public int? unknown45;
+    public float? unknown46;
+    public float? unknown47;
+    public int? unknown48;
+    public float? unknown49;
 
     public void Deserialize(RelicBlobReader reader)
     {
-        reader.AssertStructVersion(2029, 2030, 2033);
+        reader.AssertStructVersion(2029, 2030, 2033, 2034);
 
         playerId = reader.ReadInt32();
         playerName = reader.ReadPrefixedUnicodeString();
@@ -394,6 +418,8 @@ public class DataSTPD : DataModelBase, IDeserializable
         unknown26 = reader.ReadInt32Array(6);
         unknown27a = reader.ReadByte();
         unknown27b = reader.ReadSingle();
+        if (reader.StructVersion >= 2034)
+            unknown27c = reader.ReadInt32();
         unknown28a = reader.ReadInt32();
         unknown28b = reader.ReadSingle();
         unknown28c = reader.ReadInt32();
@@ -420,5 +446,32 @@ public class DataSTPD : DataModelBase, IDeserializable
         unknown30d = reader.ReadSingle();
         if (reader.StructVersion >= 2030)
             playerColor = (PlayerColor)reader.ReadInt32();
+
+        if (reader.StructVersion >= 2033)
+        {
+            unknown31 = reader.ReadInt32();
+            unknown32 = reader.ReadInt32();
+            unknown33 = reader.ReadInt32();
+        }
+
+        if (reader.StructVersion >= 2034)
+        {
+            unknown34 = reader.ReadInt32();
+            unknown35 = reader.ReadSingle();
+            unknown36 = reader.ReadInt32();
+            unknown37 = reader.ReadSingle();
+            unknown38 = reader.ReadSingle();
+            unknown39 = reader.ReadInt32();
+            unknown40 = reader.ReadSingle();
+            unknown41 = reader.ReadInt32();
+            unknown42 = reader.ReadSingle();
+            unknown43 = reader.ReadSingle();
+            unknown44 = reader.ReadSingle();
+            unknown45 = reader.ReadInt32();
+            unknown46 = reader.ReadSingle();
+            unknown47 = reader.ReadSingle();
+            unknown48 = reader.ReadInt32();
+            unknown49 = reader.ReadSingle();
+        }
     }
 }
