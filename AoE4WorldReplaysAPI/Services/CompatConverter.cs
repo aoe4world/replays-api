@@ -23,6 +23,7 @@ namespace AoE4WorldReplaysAPI.Services
                     Name = player.PlayerName,
                     ProfileId = player.PlayerProfileId,
                     CivilizationAttrib = player.Civ,
+                    PlayerColor = (int)player.PlayerColor,
                     Actions = MapActions(replaySummary.Players[i], player),
                     Scores = new Parser.Scores
                     {

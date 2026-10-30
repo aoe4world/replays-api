@@ -1,3 +1,4 @@
+using AoE4WorldReplaysParser.Summary;
 using AOEMods.Essence.Chunky.Core;
 using AOEMods.Essence.Chunky.Graph;
 using System.Diagnostics;
@@ -11,6 +12,7 @@ public class Parser
         string Name,
         int? ProfileId,
         string? CivilizationAttrib,
+        int? PlayerColor,
         Dictionary<string, List<uint>> Actions,
         Scores Scores,
         Dictionary<string, int> TotalResourcesGathered,
@@ -260,6 +262,7 @@ public class Parser
 
             var playerSummary = new PlayerSummary(
                 player.Name,
+                null,
                 null,
                 null,
                 new Dictionary<string, List<uint>>(),
